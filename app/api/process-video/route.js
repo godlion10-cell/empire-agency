@@ -39,7 +39,7 @@ export async function POST(request) {
 
     const result = await genAI.models.generateContent({
       model: 'gemini-2.0-flash',
-      contents: `당신은 전문 영상 편집자이자 Face-Tracking AI입니다.
+      contents: [{ parts: [{ text: `당신은 전문 영상 편집자이자 Face-Tracking AI입니다.
 이 YouTube 영상을 실제로 분석하여 16:9 원본을 9:16 세로형 숏폼으로 변환하기 위한 정확한 크롭 가이드를 생성하세요.
 
 [YouTube 영상]: ${videoUrl}
@@ -78,11 +78,12 @@ ${highlightInfo}
     "ffmpeg -i input.mp4 -vf 'crop=607:1080:320:0' -t 7 -ss 5 scene1_crop.mp4"
   ],
   "tips": ["팁1", "팁2"]
-}`,
+}` }] }],
+      config: { temperature: 0.3 },
     });
 
     let parsed;
-    const text = result.text || '';
+    const text = result.text || result.candidates?.[0]?.content?.parts?.[0]?.text || '';
     try {
       // JSON 블록 추출
       const jsonMatch = text.match(/\{[\s\S]*\}/);

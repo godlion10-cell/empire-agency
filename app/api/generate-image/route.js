@@ -22,7 +22,7 @@ export async function POST(request) {
     // Gemini로 MJ 프롬프트를 한국어+영어 하이브리드로 정제
     const result = await genAI.models.generateContent({
       model: 'gemini-2.0-flash',
-      contents: `당신은 Midjourney 프롬프트 전문가입니다.
+      contents: [{ parts: [{ text: `당신은 Midjourney 프롬프트 전문가입니다.
 다음 프롬프트를 분석하고, 더 강력한 MJ 프롬프트 3종 변형을 생성하세요.
 
 [원본 프롬프트]: ${prompt}
@@ -37,12 +37,13 @@ export async function POST(request) {
     { "name": "변형3 이름", "prompt": "MJ 프롬프트3" }
   ],
   "description_ko": "이 배너의 한국어 설명 (1줄)"
-}`,
+}` }] }],
+      config: { temperature: 0.5 },
     });
 
     let parsed;
     try {
-      const text = result.text || result.response?.text?.() || '';
+      const text = result.text || result.candidates?.[0]?.content?.parts?.[0]?.text || '';
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { refined_prompt: prompt, variations: [] };
     } catch {
