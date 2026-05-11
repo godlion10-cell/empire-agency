@@ -40,6 +40,10 @@ export default function EmpireConsole() {
   const [copyGenerating, setCopyGenerating] = useState(false); // 카피 생성 중
   const [visualGenerating, setVisualGenerating] = useState(false); // 비주얼 생성 중
 
+  // ★ 실시간 진행 상황 시스템
+  const [progress, setProgress] = useState({ active: false, percent: 0, status: '', stage: '' });
+  const [renderVideo, setRenderVideo] = useState(null); // 완성 영상 URL
+
   // 쉐도우 룸 에셋 선택
   const [selectedAssets, setSelectedAssets] = useState([]);
 
@@ -99,12 +103,29 @@ export default function EmpireConsole() {
     }
   };
 
-  // 엔진 2: 원본 숏폼 요약
+  // 엔진 2: 원본 숏폼 요약 — 실시간 진행 표시
   const handleSummaryEngine = async () => {
     if (!masterInput || summaryProcessing) return;
     setSummaryProcessing(true);
     setSummaryResult(null);
-    setToastMsg('✂️ YouTube 자막 스캔 중... (AI 분석까지 최대 60초 소요)');
+
+    // ── 실시간 진행 시작 ──
+    setProgress({ active: true, percent: 5, status: '🔍 YouTube URL 파싱 중...', stage: 'parse' });
+
+    // 시뮬레이션 타이머: 서버 응답 전까지 진행률 올림
+    const stages = [
+      { at: 800, p: 15, s: '📡 서버 연결 완료', st: 'connect' },
+      { at: 2000, p: 25, s: '📄 자막 트랙 스캔 중...', st: 'scan' },
+      { at: 4000, p: 35, s: '🔵 Level 1: 라이브러리 스크래핑...', st: 'level1' },
+      { at: 7000, p: 45, s: '🟣 Level 2: 웹페이지 파싱...', st: 'level2' },
+      { at: 12000, p: 55, s: '🧠 Level 3: Gemini AI 분석 중...', st: 'level3' },
+      { at: 18000, p: 65, s: '🧠 AI가 영상 오디오를 듣고 있어요...', st: 'ai_listen' },
+      { at: 25000, p: 72, s: '✍️ 하이라이트 구간 추출 중...', st: 'highlight' },
+      { at: 35000, p: 80, s: '📊 바이럴 점수 계산 중...', st: 'score' },
+    ];
+    const timers = stages.map(s => setTimeout(() => {
+      setProgress(prev => prev.active ? { active: true, percent: s.p, status: s.s, stage: s.st } : prev);
+    }, s.at));
 
     try {
       const res = await fetch('/api/engine/summary', {
@@ -112,25 +133,36 @@ export default function EmpireConsole() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: masterInput }),
       });
+
+      // 응답 도착 → 진행률 급등
+      timers.forEach(t => clearTimeout(t));
+      setProgress({ active: true, percent: 90, status: '📦 데이터 수신 완료...', stage: 'receive' });
+
       const data = await res.json();
       if (data.success) {
+        setProgress({ active: true, percent: 95, status: '🔗 카피/비주얼 자동 생성 중...', stage: 'bind' });
         setSummaryResult(data.data);
-        const src = data.data.source?.transcriptSource;
-        const srcLabel = src === 'gemini' ? '🟣 Gemini AI 직접 분석' : src === 'scrape' ? '🔵 웹 스크래핑' : '🟢 자막 추출';
-        setToastMsg(`✅ 하이라이트 ${data.data.highlights?.length || 0}개 추출 완료! (${srcLabel})`);
 
-        // ★ 하이라이트 분석 완료 → 카피/비주얼 자동 생성
         if (data.data.highlights?.length > 0) {
           autoGenerateFromHighlights(data.data);
         }
+
+        // 100% 완료
+        await new Promise(r => setTimeout(r, 600));
+        const src = data.data.source?.transcriptSource;
+        const srcLabel = src === 'gemini' ? '🟣 Gemini AI' : src === 'scrape' ? '🔵 스크래핑' : '🟢 라이브러리';
+        setProgress({ active: true, percent: 100, status: `✅ 완료! 하이라이트 ${data.data.highlights?.length || 0}개 (${srcLabel})`, stage: 'done' });
+        setTimeout(() => setProgress({ active: false, percent: 0, status: '', stage: '' }), 4000);
       } else {
-        setToastMsg(`❌ ${data.error}`);
+        setProgress({ active: true, percent: 100, status: `❌ ${data.error}`, stage: 'error' });
+        setTimeout(() => setProgress({ active: false, percent: 0, status: '', stage: '' }), 3000);
       }
     } catch (err) {
-      setToastMsg(`❌ 에러: ${err.message}`);
+      timers.forEach(t => clearTimeout(t));
+      setProgress({ active: true, percent: 100, status: `❌ 에러: ${err.message}`, stage: 'error' });
+      setTimeout(() => setProgress({ active: false, percent: 0, status: '', stage: '' }), 3000);
     }
     setSummaryProcessing(false);
-    setTimeout(() => setToastMsg(null), 3000);
   };
 
   // ★ 하이라이트 분석 완료 → 카피 + 비주얼 자동 생성
@@ -292,14 +324,18 @@ export default function EmpireConsole() {
   // 제국 엔진 가동
   const handleIgnite = async () => {
     if (!masterInput.trim()) {
-      alert("URL 또는 주제를 입력해주세요.");
+      setToastMsg('❌ URL 또는 주제를 입력해주세요.');
+      setTimeout(() => setToastMsg(null), 2000);
       return;
     }
     setIsProcessing(true);
     setEngineResult(null);
+    setProgress({ active: true, percent: 5, status: '🚀 제국 엔진 점화 중...', stage: 'ignite' });
 
     try {
       // 카피 생성
+      setProgress({ active: true, percent: 20, status: '✍️ AI 카피라이팅 엔진 가동...', stage: 'copy' });
+      setCopyGenerating(true);
       const copyRes = await fetch('/api/ad-copy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -313,8 +349,10 @@ export default function EmpireConsole() {
       if (copyResult.success) {
         setCopyData(copyResult.data);
       }
+      setCopyGenerating(false);
 
       // 렌더링 엔진
+      setProgress({ active: true, percent: 50, status: '🎬 시네마틱 렌더 엔진 가동...', stage: 'render' });
       const renderRes = await fetch('/api/render-engine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -332,11 +370,15 @@ export default function EmpireConsole() {
       if (renderResult.success) {
         setVideoCuts(renderResult.data.videos || []);
         setEngineResult(renderResult.data);
+        if (renderResult.data.videos?.[0]?.url) {
+          setRenderVideo(renderResult.data.videos[0].url);
+        }
       }
 
-      // MJ 프롬프트 4종 자동 생성 (입력 키워드 기반)
+      // MJ 프롬프트 4종 자동 생성
+      setProgress({ active: true, percent: 80, status: '🎨 비주얼 프롬프트 4종 생성...', stage: 'visual' });
+      setVisualGenerating(true);
       const kw = masterInput;
-      // Master DNA 업데이트
       const usps = copyResult.success && copyResult.data?.[0] ? [copyResult.data[0].headline, copyResult.data[0].body?.substring(0, 50)] : [kw];
       setMasterDNA({
         brand_name: kw,
@@ -352,11 +394,18 @@ export default function EmpireConsole() {
         sns: `A successful young Korean professional relaxing on a luxury ${kw} apartment terrace with a cup of coffee, looking at the park view, warm morning light, premium lifestyle, photorealistic, 8k, advertisement style --ar 1:1 --v 6.0`,
         card: `High-end luxury ${kw} apartment entrance signage mockup, dark marble stone texture with metallic gold accents, minimal, clean, cinematic lighting, photorealistic, 8k --ar 16:9 --v 6.0`,
       });
+      setVisualGenerating(false);
 
+      // 완료
+      setProgress({ active: true, percent: 100, status: '✅ 제국 엔진 가동 완료! 모든 섹션 READY', stage: 'done' });
+      setTimeout(() => setProgress({ active: false, percent: 0, status: '', stage: '' }), 4000);
       setIsProcessing(false);
     } catch (error) {
       setIsProcessing(false);
-      alert("엔진 오류: " + error.message);
+      setCopyGenerating(false);
+      setVisualGenerating(false);
+      setProgress({ active: true, percent: 100, status: `❌ 엔진 오류: ${error.message}`, stage: 'error' });
+      setTimeout(() => setProgress({ active: false, percent: 0, status: '', stage: '' }), 3000);
     }
   };
 
@@ -419,6 +468,36 @@ export default function EmpireConsole() {
             </button>
           ))}
         </div>
+
+        {/* ★ 실시간 진행 상황 바 */}
+        {progress.active && (
+          <div className="mt-4 bg-black/60 border border-gray-700 rounded-xl p-4 backdrop-blur-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-xs font-bold ${progress.stage === 'done' ? 'text-[#39FF14]' : progress.stage === 'error' ? 'text-red-400' : 'text-cyan-300'}`}>
+                {progress.status}
+              </span>
+              <span className={`text-sm font-mono font-bold ${progress.stage === 'done' ? 'text-[#39FF14]' : progress.stage === 'error' ? 'text-red-400' : 'text-white'}`}>
+                {progress.percent}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-800 h-2.5 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ease-out ${
+                  progress.stage === 'done' ? 'bg-[#39FF14] shadow-[0_0_12px_rgba(57,255,20,0.6)]'
+                  : progress.stage === 'error' ? 'bg-red-500'
+                  : 'bg-gradient-to-r from-cyan-500 to-blue-500 shadow-[0_0_8px_rgba(6,182,212,0.4)]'
+                }`}
+                style={{ width: `${progress.percent}%` }}
+              ></div>
+            </div>
+            {progress.stage !== 'done' && progress.stage !== 'error' && (
+              <div className="mt-2 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></div>
+                <span className="text-[9px] text-gray-500">서버가 작업 중입니다 · 이 작업은 최대 60초가 소요됩니다</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 엔진 A: 롱폼 재창조 (현재 가동 중) */}
         {activeEngine === 'recreate' && (
