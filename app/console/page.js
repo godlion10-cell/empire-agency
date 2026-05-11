@@ -3,9 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 
 export default function EmpireConsole() {
-  const MASTER_PW = "49581"; // 주인님의 전속 비번
   const [isLocked, setIsLocked] = useState(true);
-  const [inputPw, setInputPw] = useState("");
   const [showShadowRoom, setShowShadowRoom] = useState(false);
 
   // 마스터 입력 상태
@@ -21,16 +19,27 @@ export default function EmpireConsole() {
   // 쉐도우 룸 에셋 선택
   const [selectedAssets, setSelectedAssets] = useState([]);
 
-  // 쉐도우 룸 모드 활성화 로직
-  const handleShadowToggle = () => {
+  // 쉐도우 룸 모드 활성화 로직 — 서버사이드 검증
+  const handleShadowToggle = async () => {
     if (isLocked) {
       const pw = prompt("전속 비번을 입력하십시오:");
-      if (pw === MASTER_PW) {
-        setIsLocked(false);
-        setShowShadowRoom(true);
-        alert("🔒 쉐도우 룸 보안이 해제되었습니다. 관리자 모드 가동.");
-      } else if (pw !== null) {
-        alert("⚠️ 경고: 잘못된 패스워드입니다. 침입 시도가 기록되었습니다.");
+      if (!pw) return;
+      try {
+        const res = await fetch('/api/shadow-auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pw }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setIsLocked(false);
+          setShowShadowRoom(true);
+          alert("🔒 쉐도우 룸 보안이 해제되었습니다. 관리자 모드 가동.");
+        } else {
+          alert("⚠️ 경고: " + data.error);
+        }
+      } catch (err) {
+        alert("인증 서버 오류: " + err.message);
       }
     } else {
       setShowShadowRoom(!showShadowRoom);
@@ -322,8 +331,28 @@ export default function EmpireConsole() {
         </section>
       )}
 
+      {/* SYSTEM ADMINISTRATION: ANTI_PROTOCOL */}
+      <section className="mt-20 border-t border-gray-800 pt-10 pb-10 opacity-40 hover:opacity-100 transition-opacity duration-500">
+        <h3 className="text-gray-500 font-mono text-xs mb-4">{'// SYSTEM ADMINISTRATION: ANTI_PROTOCOL'}</h3>
+        <div className="bg-gray-900/30 p-6 rounded-lg border border-dashed border-gray-700 font-mono text-[11px] leading-relaxed text-gray-400">
+          <p className="text-amber-500 mb-2">[필독: 안티 지시 사항]</p>
+          <ul className="list-disc ml-4 space-y-1">
+            <li><strong>보안 임무:</strong> 쉐도우 룸 마스터 비번은 서버사이드 검증(<span className="text-cyan-400">/api/shadow-auth</span>)으로 보호. 클라이언트 노출 차단.</li>
+            <li><strong>UI 통합 임무:</strong> 1, 2, 3구역을 그리드 레이아웃으로 한 화면에 배치. 오퍼레이터 동선 최소화 <span className="text-emerald-400">✅ 적용됨</span></li>
+            <li><strong>데이터 분류 임무:</strong> URL 입력 시 AI 엔진이 카피/포스터/영상으로 자동 분류하여 해당 섹션에 즉각 표시 <span className="text-emerald-400">✅ 적용됨</span></li>
+            <li><strong>API 연동 가이드:</strong>
+              <ul className="list-disc ml-4 mt-1 space-y-0.5">
+                <li>Midjourney: 비공식 API 세션 유지 최우선</li>
+                <li>Luma/Runway: 영상 생성 Progress 실시간 모니터링</li>
+                <li>ElevenLabs: 스크립트 → 성우 보이스 자동 합성 → MP4 결합</li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </section>
+
       {/* 하단 */}
-      <footer className="mt-10 text-center text-[10px] text-gray-700 tracking-widest">
+      <footer className="mt-6 text-center text-[10px] text-gray-700 tracking-widest">
         EMPIRE INTEGRATED CONSOLE — V1.0 · MASTER ACCESS ONLY
       </footer>
     </div>
