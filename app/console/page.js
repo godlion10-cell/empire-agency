@@ -10,6 +10,7 @@ export default function EmpireConsole() {
   const [masterInput, setMasterInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [engineResult, setEngineResult] = useState(null);
+  const [activeEngine, setActiveEngine] = useState('recreate'); // recreate | summary | commerce
 
   // 구역별 데이터
   const [copyData, setCopyData] = useState(null);
@@ -209,27 +210,132 @@ export default function EmpireConsole() {
       {/* STEP 1: 마스터 입력 포털 */}
       <section className="mb-10 bg-gray-900/50 p-6 md:p-8 rounded-2xl border border-gray-800 shadow-2xl">
         <h2 className="text-amber-500 font-bold mb-4 text-sm uppercase tracking-widest">🔻 STEP 1: 마스터 입력 포털</h2>
-        <div className="flex flex-col md:flex-row gap-4">
-          <input
-            type="text"
-            value={masterInput}
-            onChange={(e) => setMasterInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleIgnite()}
-            placeholder="유튜브 URL, 영상 주소, 또는 프로젝트 키워드를 입력하십시오..."
-            className="flex-1 bg-black border border-gray-700 rounded-lg p-3.5 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 outline-none transition-all placeholder-gray-600"
-          />
-          <button
-            onClick={handleIgnite}
-            disabled={isProcessing}
-            className={`px-8 py-3.5 rounded-lg font-bold transition-all text-sm whitespace-nowrap ${
-              isProcessing
-                ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                : 'bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black shadow-lg shadow-amber-900/30'
-            }`}
-          >
-            {isProcessing ? '⏳ 제국 엔진 가동 중...' : '⚡ 제국 엔진 가동'}
-          </button>
+
+        {/* 3엔진 탭 메뉴 */}
+        <div className="flex gap-2 mb-5 border-b border-gray-800 pb-3 overflow-x-auto">
+          {[
+            { id: 'recreate', icon: '🚀', label: '롱폼 재창조 (시네마틱)', color: 'amber' },
+            { id: 'summary', icon: '✂️', label: '원본 숏폼 요약', color: 'cyan' },
+            { id: 'commerce', icon: '🛍️', label: '커머스 맞춤 광고', color: 'pink' },
+          ].map((engine) => (
+            <button
+              key={engine.id}
+              onClick={() => setActiveEngine(engine.id)}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap border ${
+                activeEngine === engine.id
+                  ? `bg-${engine.color}-600/20 border-${engine.color}-600 text-${engine.color}-400 shadow-lg`
+                  : 'bg-gray-800/50 border-gray-700 text-gray-400 hover:border-gray-600'
+              }`}
+              style={activeEngine === engine.id ? {
+                background: engine.id === 'recreate' ? 'rgba(217,119,6,0.15)' : engine.id === 'summary' ? 'rgba(6,182,212,0.15)' : 'rgba(236,72,153,0.15)',
+                borderColor: engine.id === 'recreate' ? '#d97706' : engine.id === 'summary' ? '#06b6d4' : '#ec4899',
+                color: engine.id === 'recreate' ? '#fbbf24' : engine.id === 'summary' ? '#22d3ee' : '#f472b6',
+              } : {}}
+            >
+              {engine.icon} {engine.label}
+            </button>
+          ))}
         </div>
+
+        {/* 엔진 A: 롱폼 재창조 (현재 가동 중) */}
+        {activeEngine === 'recreate' && (
+          <div>
+            <p className="text-[10px] text-amber-400 mb-3 font-medium">⚡ 기존 영상을 AI 비주얼로 전면 재창조합니다. 카피 + MJ 프롬프트 + 영상 시퀀스 자동 생성.</p>
+            <div className="flex flex-col md:flex-row gap-4">
+              <input
+                type="text"
+                value={masterInput}
+                onChange={(e) => setMasterInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleIgnite()}
+                placeholder="유튜브 URL, 영상 주소, 또는 프로젝트 키워드를 입력하십시오..."
+                className="flex-1 bg-black border border-gray-700 rounded-lg p-3.5 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 outline-none transition-all placeholder-gray-600"
+              />
+              <button
+                onClick={handleIgnite}
+                disabled={isProcessing}
+                className={`px-8 py-3.5 rounded-lg font-bold transition-all text-sm whitespace-nowrap ${
+                  isProcessing
+                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black shadow-lg shadow-amber-900/30'
+                }`}
+              >
+                {isProcessing ? '⏳ 제국 엔진 가동 중...' : '⚡ 제국 엔진 가동'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 엔진 B: 원본 숏폼 요약 */}
+        {activeEngine === 'summary' && (
+          <div>
+            <p className="text-[10px] text-cyan-400 mb-3 font-medium">✂️ 원본 영상의 하이라이트를 추출하고 세로형(Face-Tracking)으로 변환합니다.</p>
+            <div className="flex flex-col md:flex-row gap-4">
+              <input
+                type="text"
+                value={masterInput}
+                onChange={(e) => setMasterInput(e.target.value)}
+                placeholder="원본 영상 유튜브 URL 또는 파일 경로..."
+                className="flex-1 bg-black border border-gray-700 rounded-lg p-3.5 text-sm focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20 outline-none transition-all placeholder-gray-600"
+              />
+              <button
+                disabled={true}
+                className="px-8 py-3.5 rounded-lg font-bold text-sm whitespace-nowrap bg-gray-800 border border-cyan-800/30 text-cyan-600 cursor-not-allowed"
+              >
+                🔒 준비 중 (Coming Soon)
+              </button>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="bg-black/40 p-3 rounded-lg border border-gray-800 text-center">
+                <p className="text-cyan-400 text-xs font-bold">🎤 Face-Track</p>
+                <p className="text-[9px] text-gray-500 mt-1">인물 중심 자동 크롭</p>
+              </div>
+              <div className="bg-black/40 p-3 rounded-lg border border-gray-800 text-center">
+                <p className="text-cyan-400 text-xs font-bold">📊 하이라이트</p>
+                <p className="text-[9px] text-gray-500 mt-1">AI 핵심 구간 추출</p>
+              </div>
+              <div className="bg-black/40 p-3 rounded-lg border border-gray-800 text-center">
+                <p className="text-cyan-400 text-xs font-bold">9:16 변환</p>
+                <p className="text-[9px] text-gray-500 mt-1">세로형 자동 리프레이밍</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 엔진 C: 커머스 맞춤 광고 */}
+        {activeEngine === 'commerce' && (
+          <div>
+            <p className="text-[10px] text-pink-400 mb-3 font-medium">🛍️ 일반 상품 URL을 분석하여 판매용 맞춤형 광고를 렌더링합니다.</p>
+            <div className="flex flex-col md:flex-row gap-4">
+              <input
+                type="text"
+                value={masterInput}
+                onChange={(e) => setMasterInput(e.target.value)}
+                placeholder="상품 URL (쿠팡, 네이버 스토어, 자사몰 등)..."
+                className="flex-1 bg-black border border-gray-700 rounded-lg p-3.5 text-sm focus:border-pink-500 focus:ring-1 focus:ring-pink-500/20 outline-none transition-all placeholder-gray-600"
+              />
+              <button
+                disabled={true}
+                className="px-8 py-3.5 rounded-lg font-bold text-sm whitespace-nowrap bg-gray-800 border border-pink-800/30 text-pink-600 cursor-not-allowed"
+              >
+                🔒 준비 중 (Coming Soon)
+              </button>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="bg-black/40 p-3 rounded-lg border border-gray-800 text-center">
+                <p className="text-pink-400 text-xs font-bold">📸 상품샷</p>
+                <p className="text-[9px] text-gray-500 mt-1">AI 상품 이미지 생성</p>
+              </div>
+              <div className="bg-black/40 p-3 rounded-lg border border-gray-800 text-center">
+                <p className="text-pink-400 text-xs font-bold">📝 설득카피</p>
+                <p className="text-[9px] text-gray-500 mt-1">구매 전환 최적화</p>
+              </div>
+              <div className="bg-black/40 p-3 rounded-lg border border-gray-800 text-center">
+                <p className="text-pink-400 text-xs font-bold">🎬 숏폼</p>
+                <p className="text-[9px] text-gray-500 mt-1">상품 영상 자동 제작</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 엔진 상태 표시 */}
         {isProcessing && (
