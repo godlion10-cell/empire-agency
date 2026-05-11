@@ -36,6 +36,9 @@ export default function EmpireConsole() {
   const [commerceResult, setCommerceResult] = useState(null); // 엔진3 커머스 결과
   const [commerceProcessing, setCommerceProcessing] = useState(false);
   const [commerceImage, setCommerceImage] = useState(null); // 상품 이미지
+  const [selectedHighlight, setSelectedHighlight] = useState(null); // 선택된 하이라이트
+  const [copyGenerating, setCopyGenerating] = useState(false); // 카피 생성 중
+  const [visualGenerating, setVisualGenerating] = useState(false); // 비주얼 생성 중
 
   // 쉐도우 룸 에셋 선택
   const [selectedAssets, setSelectedAssets] = useState([]);
@@ -115,6 +118,11 @@ export default function EmpireConsole() {
         const src = data.data.source?.transcriptSource;
         const srcLabel = src === 'gemini' ? '🟣 Gemini AI 직접 분석' : src === 'scrape' ? '🔵 웹 스크래핑' : '🟢 자막 추출';
         setToastMsg(`✅ 하이라이트 ${data.data.highlights?.length || 0}개 추출 완료! (${srcLabel})`);
+
+        // ★ 하이라이트 분석 완료 → 카피/비주얼 자동 생성
+        if (data.data.highlights?.length > 0) {
+          autoGenerateFromHighlights(data.data);
+        }
       } else {
         setToastMsg(`❌ ${data.error}`);
       }
@@ -123,6 +131,73 @@ export default function EmpireConsole() {
     }
     setSummaryProcessing(false);
     setTimeout(() => setToastMsg(null), 3000);
+  };
+
+  // ★ 하이라이트 분석 완료 → 카피 + 비주얼 자동 생성
+  const autoGenerateFromHighlights = (data) => {
+    const topHL = data.highlights[0];
+    setSelectedHighlight(topHL);
+
+    // 카피 섹션 자동 생성
+    setCopyGenerating(true);
+    setTimeout(() => {
+      const autoCopy = data.highlights.slice(0, 3).map((h, i) => ({
+        headline: `✨ ${h.caption || `하이라이트 #${i + 1}`}`,
+        body: h.reason || h.caption || '',
+        cta: `🔥 ${h.emotion || '놀라운'} 구간 ${Math.floor(h.start_sec / 60)}:${String(h.start_sec % 60).padStart(2, '0')} ~ ${Math.floor(h.end_sec / 60)}:${String(h.end_sec % 60).padStart(2, '0')} 확인하세요!`,
+      }));
+      setCopyData(autoCopy);
+      setCopyGenerating(false);
+    }, 800);
+
+    // 비주얼 섹션 자동 프롬프트 생성
+    setVisualGenerating(true);
+    setTimeout(() => {
+      const title = data.source?.title || masterInput;
+      const hlText = topHL?.caption || masterInput;
+      setMjPrompts({
+        poster: `A cinematic vertical poster of "${title}", featuring ${hlText}, dramatic lighting, bold Korean typography overlay, premium ad style, photorealistic, 8k --ar 9:16 --v 6.0`,
+        logo: `A minimalist luxury brand logo for "${title}", high-end emblem, geometric, gold and black, flat vector design, clean background --no text, typography --v 6.0`,
+        sns: `An engaging Instagram Reels thumbnail for "${title}", featuring ${hlText}, vibrant colors, Korean text overlay, viral social media style, attention-grabbing --ar 1:1 --v 6.0`,
+        card: `A premium YouTube short thumbnail for "${title}", ${hlText}, cinematic color grading, bold caption style, 8k --ar 16:9 --v 6.0`,
+      });
+      setMasterDNA(prev => ({
+        ...prev,
+        brand_name: title,
+        usp: data.highlights.slice(0, 3).map(h => h.caption),
+      }));
+      setVisualGenerating(false);
+    }, 1200);
+  };
+
+  // ★ 특정 하이라이트 클릭 → 카피 즉시 갱신
+  const handleHighlightSelect = (highlight, index) => {
+    setSelectedHighlight(highlight);
+    setCopyGenerating(true);
+    setToastMsg(`🎯 하이라이트 #${index + 1} 선택 → 카피/비주얼 갱신 중...`);
+
+    setTimeout(() => {
+      setCopyData([{
+        headline: `🔥 ${highlight.caption}`,
+        body: `${highlight.reason || ''}\n\n감정: ${highlight.emotion || '강렬'} · 바이럴 지수: ${highlight.viral_score || '-'}/10`,
+        cta: `▶️ ${Math.floor(highlight.start_sec / 60)}:${String(highlight.start_sec % 60).padStart(2, '0')} ~ ${Math.floor(highlight.end_sec / 60)}:${String(highlight.end_sec % 60).padStart(2, '0')} 이 구간을 놓치지 마세요!`,
+      }]);
+      setCopyGenerating(false);
+      setToastMsg(`✅ #${index + 1} 하이라이트 카피 갱신 완료`);
+      setTimeout(() => setToastMsg(null), 2000);
+    }, 500);
+
+    // 비주얼도 해당 하이라이트에 맞춰 갱신
+    setVisualGenerating(true);
+    setTimeout(() => {
+      const title = summaryResult?.source?.title || masterInput;
+      setMjPrompts(prev => ({
+        ...prev,
+        poster: `A cinematic vertical poster of "${title}", scene: ${highlight.caption}, emotion: ${highlight.emotion || 'intense'}, dramatic lighting, bold Korean typography, 8k --ar 9:16 --v 6.0`,
+        sns: `Instagram Reels cover for "${title}" highlight: ${highlight.caption}, ${highlight.emotion || 'viral'} mood, Korean text, vibrant --ar 1:1 --v 6.0`,
+      }));
+      setVisualGenerating(false);
+    }, 800);
   };
 
   // 엔진 3: 커머스 맞춤 광고
@@ -432,10 +507,19 @@ export default function EmpireConsole() {
                     {summaryResult.summary && <p className="text-gray-400 mt-1 italic">{summaryResult.summary}</p>}
                   </div>
                 )}
+                {summaryResult.highlights?.length > 0 && (
+                  <p className="text-[9px] text-cyan-600 mb-1">👆 하이라이트를 클릭하면 하단 카피/비주얼이 즉시 갱신됩니다</p>
+                )}
                 {summaryResult.highlights?.map((h, i) => (
-                  <div key={i} className="bg-black/30 p-3 rounded-lg border border-cyan-900/30 text-[10px]">
+                  <div
+                    key={i}
+                    onClick={() => handleHighlightSelect(h, i)}
+                    className={`bg-black/30 p-3 rounded-lg border text-[10px] cursor-pointer transition-all hover:bg-cyan-900/10 ${
+                      selectedHighlight === h ? 'border-cyan-500 ring-1 ring-cyan-500/30 bg-cyan-900/20' : 'border-cyan-900/30'
+                    }`}
+                  >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-cyan-400 font-bold">#{h.rank || i + 1} {h.emotion && `${h.emotion === '놀라움' ? '😮' : h.emotion === '감동' ? '🥹' : h.emotion === '유머' ? '😂' : h.emotion === '긴장' ? '😰' : '🔥'}`}</span>
+                      <span className="text-cyan-400 font-bold">#{h.rank || i + 1} {h.emotion && `${h.emotion === '놀라움' ? '😮' : h.emotion === '감동' ? '🥹' : h.emotion === '유머' ? '😂' : h.emotion === '긴장' ? '😰' : '🔥'}`} {selectedHighlight === h && <span className="text-[8px] text-cyan-300 ml-1">✓ 선택됨</span>}</span>
                       <div className="flex items-center gap-2">
                         <span className="text-gray-500">{Math.floor(h.start_sec / 60)}:{String(h.start_sec % 60).padStart(2, '0')} → {Math.floor(h.end_sec / 60)}:{String(h.end_sec % 60).padStart(2, '0')}</span>
                         {h.viral_score && <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${h.viral_score >= 8 ? 'bg-red-900/50 text-red-300' : h.viral_score >= 6 ? 'bg-amber-900/50 text-amber-300' : 'bg-gray-800 text-gray-400'}`}>🔥 {h.viral_score}/10</span>}
@@ -662,34 +746,42 @@ export default function EmpireConsole() {
 
       {/* STEP 2: 3대 구역 통합 그리드 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-        {/* 구역 A: 기획/카피 */}
         <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 hover:border-gray-700 transition-colors">
           <h3 className="text-blue-400 font-bold mb-4 border-b border-gray-800 pb-2 text-sm flex items-center gap-2">
             📝 기획 & 카피라이팅
-            {copyData && <span className="text-[10px] px-1.5 py-0.5 bg-blue-900/30 text-blue-300 rounded">READY</span>}
+            {copyGenerating && <span className="text-[10px] px-1.5 py-0.5 bg-blue-900/30 text-blue-300 rounded animate-pulse">AI 기획 중...</span>}
+            {!copyGenerating && copyData && <span className="text-[10px] px-1.5 py-0.5 bg-blue-900/30 text-blue-300 rounded">READY</span>}
+            {selectedHighlight && <span className="text-[9px] text-gray-500 ml-auto">#{selectedHighlight.rank || '1'} 하이라이트 기반</span>}
           </h3>
           <div className="space-y-3 text-sm text-gray-400">
-            {copyData ? (
+            {copyGenerating ? (
+              <div className="bg-black/30 p-6 rounded-lg text-center">
+                <div className="inline-block w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mb-2"></div>
+                <p className="text-blue-400 text-xs font-medium animate-pulse">🤖 AI가 기획 중입니다...</p>
+                <p className="text-gray-600 text-[10px] mt-1">하이라이트 데이터를 기반으로 카피를 생성하고 있어요</p>
+              </div>
+            ) : copyData ? (
               copyData.map((copy, i) => (
                 <div key={i} className="bg-black/50 p-3 rounded-lg border border-gray-800/50">
                   <p className="text-white font-bold text-xs mb-1">{copy.headline}</p>
-                  <p className="text-gray-400 text-[11px] leading-relaxed">{copy.body}</p>
+                  <p className="text-gray-400 text-[11px] leading-relaxed whitespace-pre-line">{copy.body}</p>
                   <p className="text-cyan-400 text-[10px] mt-1.5 font-medium">{copy.cta}</p>
                 </div>
               ))
             ) : (
               <p className="bg-black/30 p-4 rounded-lg text-center text-gray-600 text-xs italic">
-                엔진 가동 후 카피가 생성됩니다
+                엔진 가동 후 카피가 자동 생성됩니다
               </p>
             )}
-            {copyData && (
+            {copyData && !copyGenerating && (
               <button
                 onClick={() => {
                   const all = copyData.map(c => `${c.headline}\n${c.body}\n${c.cta}`).join('\n\n---\n\n');
                   navigator.clipboard.writeText(all);
-                  alert('✅ 카피 전체 복사 완료');
+                  setToastMsg('✅ 카피 전체 복사 완료');
+                  setTimeout(() => setToastMsg(null), 2000);
                 }}
-                className="w-full py-2 bg-gray-800 hover:bg-gray-700 rounded text-xs transition-colors"
+                className="w-full py-2 bg-blue-900/30 hover:bg-blue-800/40 border border-blue-800/50 rounded text-xs transition-colors text-blue-300"
               >
                 📋 카피 전체 복사
               </button>
@@ -701,8 +793,15 @@ export default function EmpireConsole() {
         <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 hover:border-gray-700 transition-colors text-sm">
           <h3 className="text-emerald-400 font-bold mb-4 border-b border-gray-800 pb-2 text-sm flex items-center gap-2">
             🎨 비주얼 브랜딩
-            {mjPrompts && <span className="text-[10px] px-1.5 py-0.5 bg-emerald-900/30 text-emerald-300 rounded">4 PROMPTS</span>}
+            {visualGenerating && <span className="text-[10px] px-1.5 py-0.5 bg-emerald-900/30 text-emerald-300 rounded animate-pulse">AI 생성 중...</span>}
+            {!visualGenerating && mjPrompts && <span className="text-[10px] px-1.5 py-0.5 bg-emerald-900/30 text-emerald-300 rounded">4 PROMPTS</span>}
           </h3>
+          {visualGenerating && (
+            <div className="bg-black/30 p-4 rounded-lg text-center mb-4">
+              <div className="inline-block w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mb-1.5"></div>
+              <p className="text-emerald-400 text-[10px] font-medium animate-pulse">🎨 AI가 비주얼 프롬프트를 기획 중...</p>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2 mb-4">
             {[
               { key: 'poster', icon: '📸', label: '포스터 시안' },
