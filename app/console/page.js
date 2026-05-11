@@ -22,6 +22,8 @@ export default function EmpireConsole() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [videoJobs, setVideoJobs] = useState([]); // 영상 생성 작업
   const [videoSourceImg, setVideoSourceImg] = useState(null); // 3구역 소스 이미지
+  const [summaryResult, setSummaryResult] = useState(null); // 엔진2 하이라이트 결과
+  const [summaryProcessing, setSummaryProcessing] = useState(false);
 
   // 쉐도우 룸 에셋 선택
   const [selectedAssets, setSelectedAssets] = useState([]);
@@ -80,6 +82,33 @@ export default function EmpireConsole() {
       setToastMsg(`✅ ${files.length}개 이미지 업로드 완료`);
       setTimeout(() => setToastMsg(null), 2000);
     }
+  };
+
+  // 엔진 2: 원본 숏폼 요약
+  const handleSummaryEngine = async () => {
+    if (!masterInput || summaryProcessing) return;
+    setSummaryProcessing(true);
+    setSummaryResult(null);
+    setToastMsg('✂️ YouTube 자막 스캔 + AI 하이라이트 분석 중...');
+
+    try {
+      const res = await fetch('/api/engine/summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: masterInput }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSummaryResult(data.data);
+        setToastMsg(`✅ 하이라이트 ${data.data.highlights?.length || 0}개 추출 완료!`);
+      } else {
+        setToastMsg(`❌ ${data.error}`);
+      }
+    } catch (err) {
+      setToastMsg(`❌ 에러: ${err.message}`);
+    }
+    setSummaryProcessing(false);
+    setTimeout(() => setToastMsg(null), 3000);
   };
 
   // 영상 생성 (Image-to-Video)
@@ -298,14 +327,22 @@ export default function EmpireConsole() {
                 type="text"
                 value={masterInput}
                 onChange={(e) => setMasterInput(e.target.value)}
-                placeholder="원본 영상 유튜브 URL 또는 파일 경로..."
+                onKeyDown={(e) => e.key === 'Enter' && !summaryProcessing && masterInput && handleSummaryEngine()}
+                placeholder="YouTube URL을 입력하세요 (예: https://youtube.com/watch?v=...)" 
                 className="flex-1 bg-black border border-gray-700 rounded-lg p-3.5 text-sm focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20 outline-none transition-all placeholder-gray-600"
               />
               <button
-                disabled={true}
-                className="px-8 py-3.5 rounded-lg font-bold text-sm whitespace-nowrap bg-gray-800 border border-cyan-800/30 text-cyan-600 cursor-not-allowed"
+                disabled={summaryProcessing || !masterInput}
+                onClick={handleSummaryEngine}
+                className={`px-8 py-3.5 rounded-lg font-bold text-sm whitespace-nowrap transition-all ${
+                  summaryProcessing
+                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed animate-pulse'
+                    : !masterInput
+                    ? 'bg-gray-800 border border-cyan-800/30 text-cyan-700 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-black shadow-lg shadow-cyan-900/30'
+                }`}
               >
-                🔒 준비 중 (Coming Soon)
+                {summaryProcessing ? '⏳ 자막 스캔 + AI 분석 중...' : '✂️ 하이라이트 추출'}
               </button>
             </div>
             <div className="mt-4 grid grid-cols-3 gap-3">
@@ -322,6 +359,40 @@ export default function EmpireConsole() {
                 <p className="text-[9px] text-gray-500 mt-1">세로형 자동 리프레이밍</p>
               </div>
             </div>
+
+            {/* 하이라이트 결과 */}
+            {summaryResult && (
+              <div className="mt-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-cyan-400 text-xs font-bold">📊 하이라이트 추출 결과</h4>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(JSON.stringify(summaryResult, null, 2)); setToastMsg('✅ 하이라이트 JSON 복사 완료'); setTimeout(() => setToastMsg(null), 2000); }}
+                    className="text-[9px] text-cyan-500 hover:text-cyan-400"
+                  >📋 JSON 복사</button>
+                </div>
+                {summaryResult.source?.title && (
+                  <div className="bg-black/40 p-3 rounded-lg border border-gray-800 text-[10px]">
+                    <p className="text-white font-bold">{summaryResult.source.title}</p>
+                    <p className="text-gray-500 mt-1">{summaryResult.source.channel} · {Math.round(summaryResult.source.duration / 60)}분</p>
+                    {summaryResult.summary && <p className="text-gray-400 mt-1 italic">{summaryResult.summary}</p>}
+                  </div>
+                )}
+                {summaryResult.highlights?.map((h, i) => (
+                  <div key={i} className="bg-black/30 p-3 rounded-lg border border-cyan-900/30 text-[10px]">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-cyan-400 font-bold">#{h.rank || i + 1} {h.emotion && `${h.emotion === '놀라움' ? '😮' : h.emotion === '감동' ? '🥹' : h.emotion === '유머' ? '😂' : h.emotion === '긴장' ? '😰' : '🔥'}`}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500">{Math.floor(h.start_sec / 60)}:{String(h.start_sec % 60).padStart(2, '0')} → {Math.floor(h.end_sec / 60)}:{String(h.end_sec % 60).padStart(2, '0')}</span>
+                        {h.viral_score && <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${h.viral_score >= 8 ? 'bg-red-900/50 text-red-300' : h.viral_score >= 6 ? 'bg-amber-900/50 text-amber-300' : 'bg-gray-800 text-gray-400'}`}>🔥 {h.viral_score}/10</span>}
+                      </div>
+                    </div>
+                    <p className="text-white">{h.caption}</p>
+                    <p className="text-gray-500 mt-1">{h.reason}</p>
+                    {h.keywords && <div className="mt-1 flex gap-1 flex-wrap">{h.keywords.map((kw, ki) => <span key={ki} className="px-1.5 py-0.5 bg-cyan-900/30 text-cyan-300 rounded text-[8px]">{kw}</span>)}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
