@@ -751,13 +751,13 @@ export default function EmpireConsole() {
                         if (btn.act === 'summary') { handleSummaryEngine(); return; }
                         if (!masterInput) { setToastMsg('❌ URL을 먼저 입력하세요'); setTimeout(() => setToastMsg(null), 2000); return; }
                         updateAction(key, { loading: true, percent: 10, status: `${btn.icon} 서버 처리 중...`, result: null });
-                        const eps = { subtitle: { url: '/api/scrape', body: { url: masterInput }, ss: [{at:2e3,p:30,s:'📄 자막 스캔...'},{at:5e3,p:50,s:'🧠 AI 생성...'},{at:1e4,p:70,s:'✍️ 매핑...'}] },
-                          facetrack: { url: '/api/process-video', body: { url: masterInput, mode: 'facetrack', highlights: summaryResult?.highlights||[] }, ss: [{at:2e3,p:30,s:'🎯 인물 추적...'},{at:5e3,p:55,s:'📐 크롭 계산...'},{at:8e3,p:75,s:'🎬 리프레이밍...'}] },
+                        const eps = { subtitle: { url: '/api/generate-subtitles', body: { url: masterInput, highlight_id: selectedHighlight?.rank || null }, ss: [{at:2e3,p:20,s:'📡 YouTube 서버 연결...'},{at:5e3,p:35,s:'📄 자막 트랙 탐색...'},{at:8e3,p:50,s:'🧠 AI STT 엔진 가동...'},{at:15e3,p:65,s:'✍️ 음성 → 텍스트 변환...'},{at:25e3,p:78,s:'📊 타임코드 매핑...'}] },
+                          facetrack: { url: '/api/process-video', body: { url: masterInput, mode: 'facetrack', highlights: summaryResult?.highlights||[] }, ss: [{at:2e3,p:20,s:'📡 영상 메타데이터 로드...'},{at:5e3,p:40,s:'🎯 Gemini AI 인물 분석...'},{at:10e3,p:60,s:'📐 9:16 크롭 좌표 계산...'},{at:18e3,p:78,s:'🎬 FFmpeg 명령 생성...'}] },
                           banner: { url: '/api/generate-image', body: { prompt: `Instagram Reels cover "${summaryResult?.source?.title||masterInput}", Korean text, viral --ar 9:16 --v 6.0`, style: 'sns_banner' }, ss: [{at:2e3,p:40,s:'🎨 설계...'},{at:5e3,p:70,s:'🖼️ 렌더링...'}] } };
                         const ep = eps[key]; const ts = ep.ss.map(s => setTimeout(() => updateAction(key, { percent: s.p, status: s.s }), s.at));
-                        try { const r = await fetch(ep.url, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(ep.body) }); ts.forEach(t=>clearTimeout(t)); updateAction(key, { percent: 90, status: '📦 수신...' });
-                          const d = await r.json(); if (d.success) { updateAction(key, { loading: false, percent: 100, status: '✅ 완료!', result: d.data });
-                            if (key==='subtitle' && d.data?.segments) setSubtitleText(d.data.segments.map(s=>`[${s.start}s→${s.end||''}s] ${s.text}`).join('\n'));
+                        try { const r = await fetch(ep.url, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(ep.body) }); ts.forEach(t=>clearTimeout(t)); updateAction(key, { percent: 90, status: '📦 데이터 수신 완료...' });
+                          const d = await r.json(); if (d.success) { updateAction(key, { loading: false, percent: 100, status: `✅ 완료! ${key==='subtitle' ? `(${d.data?.sourceLabel||d.data?.source||''})` : key==='facetrack' ? `(${d.data?.crops?.length||0}개 크롭 포인트)` : ''}`, result: d.data });
+                            if (key==='subtitle') setSubtitleText(d.data?.text || d.data?.segments?.map(s=>`[${s.start}s→${s.end||''}s] ${s.text}`).join('\n') || '');
                             if (key==='facetrack' && d.data?.videoUrl) setRenderVideo(d.data.videoUrl);
                           } else { updateAction(key, { loading: false, percent: 100, status: `❌ ${d.error}` }); }
                         } catch(e) { ts.forEach(t=>clearTimeout(t)); updateAction(key, { loading: false, percent: 100, status: `❌ ${e.message}` }); }
@@ -784,11 +784,12 @@ export default function EmpireConsole() {
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-cyan-400 text-[10px] font-bold">💬 자막 자동 생성</span>
                       {actionStates.subtitle.loading && <span className="text-cyan-300 text-[10px] font-mono animate-pulse">{actionStates.subtitle.percent}%</span>}
+                      {!actionStates.subtitle.loading && actionStates.subtitle.result && <span className="text-[9px] text-gray-500">{actionStates.subtitle.result.sourceLabel || actionStates.subtitle.result.source} · {actionStates.subtitle.result.segmentCount || actionStates.subtitle.result.segments?.length || 0}개 세그먼트 · {actionStates.subtitle.result.durationSec || 0}초</span>}
                     </div>
                     {actionStates.subtitle.loading && <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden mb-2"><div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-500" style={{width:`${actionStates.subtitle.percent}%`}}></div></div>}
                     {actionStates.subtitle.loading && <p className="text-gray-500 text-[9px] flex items-center gap-1"><span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-ping"></span>{actionStates.subtitle.status}</p>}
                     {subtitleText && <textarea value={subtitleText} onChange={(e)=>setSubtitleText(e.target.value)} className="w-full bg-black/60 border border-gray-700 rounded-lg p-3 text-[11px] text-gray-200 font-mono leading-relaxed resize-y focus:border-[#39FF14] focus:ring-1 focus:ring-[#39FF14]/20 outline-none mt-2" rows={8} placeholder="자막 편집..."/>}
-                    {subtitleText && <span className="text-[8px] text-gray-600 mt-1 block">✏️ 위 텍스트를 직접 편집할 수 있습니다</span>}
+                    {subtitleText && <span className="text-[8px] text-gray-600 mt-1 block">✏️ 위 텍스트를 직접 편집할 수 있습니다 · 백엔드 실제 추출 데이터</span>}
                   </div>
                 )}
                 {/* Face-Track 결과 + 비디오 플레이어 */}
@@ -802,7 +803,22 @@ export default function EmpireConsole() {
                     {actionStates.facetrack.loading && <p className="text-gray-500 text-[9px] flex items-center gap-1"><span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-ping"></span>{actionStates.facetrack.status}</p>}
                     {actionStates.facetrack.result && (<div className="space-y-2 mt-2">
                       <p className="text-white text-[11px]">{actionStates.facetrack.result.guide}</p>
-                      {actionStates.facetrack.result.crops?.map((c,i) => <div key={i} className="bg-black/30 p-2 rounded border border-gray-800 text-[10px] flex items-center gap-3"><span className="text-purple-400 font-bold">Scene {c.scene||i+1}</span><span className="text-gray-400">{c.time}</span><span className="text-white">{c.subject}—{c.action}</span><span className="text-gray-500 ml-auto font-mono">{c.x},{c.y} {c.width}×{c.height}</span></div>)}
+                      {actionStates.facetrack.result.cropResolution && <p className="text-gray-600 text-[9px]">원본: {actionStates.facetrack.result.originalResolution} → 크롭: {actionStates.facetrack.result.cropResolution}</p>}
+                      {actionStates.facetrack.result.crops?.map((c,i) => <div key={i} className="bg-black/30 p-2 rounded border border-gray-800 text-[10px]">
+                        <div className="flex items-center gap-3">
+                          <span className="text-purple-400 font-bold">Scene {c.scene||i+1}</span>
+                          <span className="text-gray-400">{c.time || `${c.startSec}s~${c.endSec}s`}</span>
+                          <span className="text-white">{c.subject} — {c.action}</span>
+                          <span className="text-gray-500 ml-auto font-mono text-[9px]">crop={c.width}:{c.height}:{c.x}:{c.y}</span>
+                        </div>
+                        {c.confidence && <div className="mt-1 flex items-center gap-1"><span className="text-[8px] text-gray-600">신뢰도:</span><div className="flex-1 bg-gray-800 h-1 rounded-full overflow-hidden"><div className={`h-full rounded-full ${c.confidence>=0.8?'bg-green-500':c.confidence>=0.6?'bg-amber-500':'bg-red-500'}`} style={{width:`${c.confidence*100}%`}}></div></div><span className="text-[8px] text-gray-400">{Math.round(c.confidence*100)}%</span></div>}
+                      </div>)}
+                      {actionStates.facetrack.result.ffmpegCommands?.length > 0 && (
+                        <div className="bg-black/60 p-2 rounded border border-gray-700 mt-2">
+                          <p className="text-amber-400 text-[9px] font-bold mb-1">🖥️ FFmpeg 명령어 (복사하여 실행)</p>
+                          {actionStates.facetrack.result.ffmpegCommands.map((cmd,i) => <code key={i} className="block text-[9px] text-green-400 font-mono bg-black/40 p-1.5 rounded mb-1 break-all">{cmd}</code>)}
+                        </div>
+                      )}
                       {actionStates.facetrack.result.tips?.map((t,i) => <p key={i} className="text-gray-500 text-[9px]">💡 {t}</p>)}
                     </div>)}
                     {renderVideo && <video src={renderVideo} controls autoPlay className="w-full rounded-lg border-2 border-[#39FF14]/50 mt-3 shadow-[0_0_15px_rgba(57,255,20,0.15)]"/>}
