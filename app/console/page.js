@@ -556,21 +556,28 @@ export default function EmpireConsole() {
         )}
       </section>
 
-      {/* Master DNA 하위 기능 버튼 */}
-      {masterDNA.brand_name && (
+      {/* Master DNA 하위 기능 버튼 — 탭별 조건부 렌더링 */}
+      {(masterDNA.brand_name || summaryResult || commerceResult) && (
         <section className="mb-6 bg-gray-900/30 p-4 rounded-xl border border-gray-800">
           <div className="flex items-center gap-3 mb-3">
             <span className="text-amber-500 text-xs font-bold">🧬 MASTER DNA</span>
-            <span className="text-[9px] text-gray-500 bg-black/30 px-2 py-0.5 rounded">{masterDNA.brand_name}</span>
-            <span className="text-[9px] text-gray-600">{masterDNA.target}</span>
+            {masterDNA.brand_name && <span className="text-[9px] text-gray-500 bg-black/30 px-2 py-0.5 rounded">{masterDNA.brand_name}</span>}
+            <span className={`text-[9px] px-2 py-0.5 rounded font-bold ${
+              activeEngine === 'recreate' ? 'bg-amber-900/30 text-amber-400' :
+              activeEngine === 'summary' ? 'bg-cyan-900/30 text-cyan-400' :
+              'bg-pink-900/30 text-pink-400'
+            }`}>
+              {activeEngine === 'recreate' ? '🚀 재창조 모드' : activeEngine === 'summary' ? '✂️ 요약 모드' : '🛍️ 커머스 모드'}
+            </span>
           </div>
           <div className="flex gap-2 flex-wrap">
-            {[
-              { id: 'btn_logo', icon: '🎨', label: '로고 생성', prompt: `A minimalist luxury real estate logo for ${masterDNA.brand_name}, high-end emblem, geometric, ${masterDNA.main_color}, flat vector design, clean white background, premium brand identity --no text, typography, letters --v 6.0` },
-              { id: 'btn_poster', icon: '🖼️', label: '포스터 시안', prompt: `A breathtaking cinematic poster for ${masterDNA.brand_name}, featuring ${masterDNA.usp[0] || masterDNA.brand_name}, ${masterDNA.mood}, photorealistic, 8k, advertising photography --ar 9:16 --v 6.0` },
-              { id: 'btn_banner', icon: '📱', label: 'SNS 배너', prompt: `An Instagram advertisement banner for ${masterDNA.brand_name}, targeting ${masterDNA.target}, modern lifestyle visual, ${masterDNA.main_color} accent, premium feel, clean layout, photorealistic --ar 1:1 --v 6.0` },
-              { id: 'btn_card', icon: '🪨', label: '디지털 명함', prompt: `Professional luxury business card design for ${masterDNA.brand_name}, dark marble texture with ${masterDNA.main_color} metallic accents, minimal, clean, cinematic lighting, photorealistic, 8k --ar 16:9 --v 6.0` },
-              { id: 'btn_script', icon: '✍️', label: '광고 대본', prompt: `Write a viral 15-second Korean ad script in 해요체 for ${masterDNA.brand_name}. USP: ${masterDNA.usp.join(', ')}. Target: ${masterDNA.target}. Tone: ${masterDNA.mood}. Make it emotional and conversational.` },
+            {/* ──── 🚀 롱폼 재창조 탭 ──── */}
+            {activeEngine === 'recreate' && [
+              { id: 'btn_script', icon: '✍️', label: '숏폼 스크립트', highlight: true, prompt: `Write a viral 15-second Korean ad script in 해요체 for ${masterDNA.brand_name || masterInput}. USP: ${masterDNA.usp.join(', ') || masterInput}. Target: ${masterDNA.target}. Tone: ${masterDNA.mood}. Make it emotional, conversational, hook viewers in 3 seconds.` },
+              { id: 'btn_cinematic', icon: '🎬', label: '시네마틱 이미지', prompt: `A breathtaking cinematic shot of ${masterDNA.brand_name || masterInput}, ${masterDNA.mood || 'luxury premium'}, golden hour, volumetric lighting, Unreal Engine 5, photorealistic, 8k, film photography --ar 9:16 --v 6.0` },
+              { id: 'btn_voicemix', icon: '🔊', label: '성우 믹싱', prompt: `[ElevenLabs TTS 지시] 보이스: ${selectedVoice || '미선택'}. 감정 톤: 웅장하고 우아한 내레이션. 텍스트: "${masterDNA.usp[0] || masterDNA.brand_name || masterInput}"` },
+              { id: 'btn_runway', icon: '🎥', label: 'Runway 렌더링', prompt: `Cinematic camera push-in shot of ${masterDNA.brand_name || masterInput}, slow motion reveal, luxury atmosphere, golden hour lighting, volumetric fog, premium real estate advertisement, 4K` },
+              { id: 'btn_luma', icon: '✨', label: 'Luma 렌더링', prompt: `Smooth aerial drone shot sweeping over ${masterDNA.brand_name || masterInput}, sunrise, epic scale, cinematic color grading, premium lifestyle, architectural photography in motion` },
             ].map((btn) => (
               <button
                 key={btn.id}
@@ -579,10 +586,72 @@ export default function EmpireConsole() {
                   setToastMsg(`✅ ${btn.label} 프롬프트 복사 완료`);
                   setTimeout(() => setToastMsg(null), 2000);
                 }}
-                className="flex items-center gap-1.5 px-3 py-2 bg-black/40 hover:bg-amber-900/20 border border-gray-800 hover:border-amber-700/50 rounded-lg text-[10px] text-gray-300 hover:text-amber-300 transition-all"
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-bold transition-all border ${
+                  btn.highlight
+                    ? 'bg-amber-900/30 border-amber-600/50 text-amber-300 hover:bg-amber-800/40 hover:border-amber-500 shadow-sm shadow-amber-900/20'
+                    : 'bg-black/40 border-gray-800 text-gray-300 hover:bg-amber-900/20 hover:border-amber-700/50 hover:text-amber-300'
+                }`}
               >
                 <span>{btn.icon}</span>
-                <span className="font-bold">{btn.label}</span>
+                <span>{btn.label}</span>
+              </button>
+            ))}
+
+            {/* ──── ✂️ 원본 숏폼 요약 탭 ──── */}
+            {activeEngine === 'summary' && [
+              { id: 'btn_highlight', icon: '📊', label: '하이라이트 추출', highlight: true, action: 'summary' },
+              { id: 'btn_autosub', icon: '💬', label: '자막 자동 생성', prompt: summaryResult?.subtitles ? JSON.stringify(summaryResult.subtitles, null, 2) : `[타임코드 자막 JSON 생성] 영상: ${masterInput}. 형식: [{"start": 0.0, "end": 3.5, "text": "자막 내용"}]` },
+              { id: 'btn_facetrack', icon: '👤', label: '페이스 트래킹 크롭', prompt: summaryResult?.highlights ? `[Face-Track 가이드]\n${summaryResult.highlights.map(h => `${Math.floor(h.start_sec/60)}:${String(h.start_sec%60).padStart(2,'0')} → 피사체 중심 크롭, 감정: ${h.emotion}`).join('\n')}` : `[Face-Track] 원본 영상(${masterInput})의 인물 중심 좌표 추적 → 9:16 세로 크롭 가이드 생성` },
+              { id: 'btn_snsbanner', icon: '📱', label: 'SNS 배너', prompt: `An eye-catching Instagram Reels cover thumbnail for "${summaryResult?.title || masterInput}", bold Korean text overlay, viral style, vibrant colors, vertical format, attention-grabbing --ar 9:16 --v 6.0` },
+            ].map((btn) => (
+              <button
+                key={btn.id}
+                onClick={() => {
+                  if (btn.action === 'summary' && !summaryProcessing) {
+                    handleSummaryEngine();
+                  } else {
+                    navigator.clipboard.writeText(btn.prompt || '');
+                    setToastMsg(`✅ ${btn.label} 프롬프트 복사 완료`);
+                    setTimeout(() => setToastMsg(null), 2000);
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-bold transition-all border ${
+                  btn.highlight
+                    ? 'bg-cyan-900/30 border-cyan-600/50 text-cyan-300 hover:bg-cyan-800/40 hover:border-cyan-500 shadow-sm shadow-cyan-900/20'
+                    : 'bg-black/40 border-gray-800 text-gray-300 hover:bg-cyan-900/20 hover:border-cyan-700/50 hover:text-cyan-300'
+                }`}
+              >
+                <span>{btn.icon}</span>
+                <span>{btn.label}</span>
+              </button>
+            ))}
+
+            {/* ──── 🛍️ 커머스 맞춤 광고 탭 ──── */}
+            {activeEngine === 'commerce' && [
+              { id: 'btn_sales_page', icon: '🏆', label: '상세페이지 자동 기획', highlight: true, prompt: `[Master-piece 상세페이지 기획]\n브랜드: ${masterDNA.brand_name || masterInput}\nUSP: ${masterDNA.usp.join(', ') || masterInput}\n타겟: ${masterDNA.target}\n\n[출력]\n1. 히어로 섹션 카피 (해요체)\n2. 3가지 핵심 소구점 + 아이콘\n3. 사회적 증거 (리뷰/수상)\n4. 긴급 CTA (한정 혜택)\n5. FAQ 3개\n6. 각 섹션의 MJ 비주얼 프롬프트` },
+              { id: 'btn_logo_c', icon: '🎨', label: '로고 생성', prompt: `A minimalist luxury brand logo for ${masterDNA.brand_name || masterInput}, high-end emblem, geometric, ${masterDNA.main_color}, flat vector design, clean white background, premium brand identity --no text, typography, letters --v 6.0` },
+              { id: 'btn_poster_c', icon: '🖼️', label: '포스터 시안', prompt: `A breathtaking product advertisement poster for ${masterDNA.brand_name || masterInput}, featuring ${masterDNA.usp[0] || 'premium quality'}, ${masterDNA.mood || 'luxury'}, studio lighting, product photography, 8k --ar 9:16 --v 6.0` },
+              { id: 'btn_hooking', icon: '🪝', label: '킬러 후킹 문구', prompt: `[킬러 후킹 문구 5종 생성]\n브랜드: ${masterDNA.brand_name || masterInput}\nUSP: ${masterDNA.usp.join(', ') || masterInput}\n타겟: ${masterDNA.target}\n\n규칙:\n- 해요체 필수\n- 3초 안에 스크롤 멈추게\n- 숫자/비교/질문 활용\n- 5가지 앵글: 호기심, 공포, FOMO, 비교, 반전\n\n예시: "이거 몰랐으면 100만원 날릴 뻔했어요..."` },
+            ].map((btn) => (
+              <button
+                key={btn.id}
+                onClick={() => {
+                  if (btn.action === 'commerce' && !commerceProcessing) {
+                    handleCommerceEngine();
+                  } else {
+                    navigator.clipboard.writeText(btn.prompt);
+                    setToastMsg(`✅ ${btn.label} ${btn.highlight ? '기획서' : '프롬프트'} 복사 완료`);
+                    setTimeout(() => setToastMsg(null), 2000);
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-bold transition-all border ${
+                  btn.highlight
+                    ? 'bg-pink-900/30 border-pink-600/50 text-pink-300 hover:bg-pink-800/40 hover:border-pink-500 shadow-sm shadow-pink-900/20 ring-1 ring-pink-500/20'
+                    : 'bg-black/40 border-gray-800 text-gray-300 hover:bg-pink-900/20 hover:border-pink-700/50 hover:text-pink-300'
+                }`}
+              >
+                <span>{btn.icon}</span>
+                <span>{btn.label}</span>
               </button>
             ))}
           </div>
