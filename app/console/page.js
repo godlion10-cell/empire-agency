@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 export default function EmpireConsole() {
@@ -25,6 +25,30 @@ export default function EmpireConsole() {
 
   // 쉐도우 룸 에셋 선택
   const [selectedAssets, setSelectedAssets] = useState([]);
+
+  // ElevenLabs 보이스 목록
+  const [voices, setVoices] = useState([]);
+  const [selectedVoice, setSelectedVoice] = useState('');
+  const [voicesLoading, setVoicesLoading] = useState(false);
+
+  // 대시보드 로드 시 보이스 목록 자동 불러오기
+  useEffect(() => {
+    const fetchVoices = async () => {
+      setVoicesLoading(true);
+      try {
+        const res = await fetch('/api/voices');
+        const data = await res.json();
+        if (data.success && data.voices.length > 0) {
+          setVoices(data.voices);
+          setSelectedVoice(data.voices[0].id);
+        }
+      } catch (e) {
+        console.log('⚠️ 보이스 목록 로드 실패:', e.message);
+      }
+      setVoicesLoading(false);
+    };
+    fetchVoices();
+  }, []);
 
   // 드래그 앤 드롭 핸들러
   const handleDrop = (e) => {
@@ -532,6 +556,45 @@ export default function EmpireConsole() {
               >
                 ✨ Luma 렌더링
               </button>
+            </div>
+
+            {/* 🎤 ElevenLabs 보이스 드롭다운 */}
+            <div className="bg-black/40 p-3 rounded-lg border border-gray-800">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[10px] text-amber-400 font-bold">🎤 AI 성우 선택</span>
+                {voicesLoading && <span className="text-[8px] text-gray-500 animate-pulse">로딩...</span>}
+                {voices.length > 0 && <span className="text-[8px] px-1.5 py-0.5 bg-amber-900/30 text-amber-300 rounded">{voices.length}개 보이스</span>}
+              </div>
+              <select
+                value={selectedVoice}
+                onChange={(e) => setSelectedVoice(e.target.value)}
+                className="w-full bg-black border border-gray-700 rounded-lg p-2 text-[10px] text-gray-300 focus:border-amber-500 outline-none transition-colors"
+              >
+                {voices.length === 0 ? (
+                  <option value="">보이스 목록 로드 중...</option>
+                ) : (
+                  voices.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name} {v.category !== 'unknown' ? `(${v.category})` : ''} {v.description ? `— ${v.description}` : ''}
+                    </option>
+                  ))
+                )}
+              </select>
+              {selectedVoice && (
+                <div className="mt-1.5 flex items-center gap-2">
+                  <span className="text-[8px] text-gray-600">ID: {selectedVoice.substring(0, 12)}...</span>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(selectedVoice); setToastMsg('✅ Voice ID 복사 완료'); setTimeout(() => setToastMsg(null), 2000); }}
+                    className="text-[8px] text-cyan-500 hover:text-cyan-400 transition-colors"
+                  >📋 복사</button>
+                  {voices.find(v => v.id === selectedVoice)?.previewUrl && (
+                    <button
+                      onClick={() => { const a = new Audio(voices.find(v => v.id === selectedVoice).previewUrl); a.play(); }}
+                      className="text-[8px] text-amber-500 hover:text-amber-400 transition-colors"
+                    >🔊 미리듣기</button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* 영상 작업 목록 */}
