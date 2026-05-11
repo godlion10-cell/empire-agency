@@ -12,6 +12,15 @@ export default function EmpireConsole() {
   const [engineResult, setEngineResult] = useState(null);
   const [activeEngine, setActiveEngine] = useState('recreate'); // recreate | summary | commerce
 
+  // Master DNA — 전역 대시보드 상태 (모든 하위 버튼이 참조)
+  const [masterDNA, setMasterDNA] = useState({
+    brand_name: '',
+    main_color: 'gold and dark green',
+    mood: 'luxury premium',
+    usp: [],
+    target: '30-50대 고소득 전문직',
+  });
+
   // 구역별 데이터
   const [copyData, setCopyData] = useState(null);
   const [visualAssets, setVisualAssets] = useState([]);
@@ -250,6 +259,16 @@ export default function EmpireConsole() {
 
       // MJ 프롬프트 4종 자동 생성 (입력 키워드 기반)
       const kw = masterInput;
+      // Master DNA 업데이트
+      const usps = copyResult.success && copyResult.data?.[0] ? [copyResult.data[0].headline, copyResult.data[0].body?.substring(0, 50)] : [kw];
+      setMasterDNA({
+        brand_name: kw,
+        main_color: 'gold and dark green',
+        mood: 'luxury premium cinematic',
+        usp: usps,
+        target: '30-50대 고소득 전문직',
+      });
+
       setMjPrompts({
         poster: `A breathtaking wide aerial shot of ${kw} luxury apartment complex surrounded by a massive lush green park at sunrise, modern architecture, cinematic lighting, photorealistic, 8k, architectural photography --ar 9:16 --v 6.0`,
         logo: `A minimalist luxury real estate logo for ${kw}, high-end apartment emblem, geometric, gold and dark green, flat vector design, clean white background, premium brand identity --no text, typography, letters --v 6.0`,
@@ -536,6 +555,39 @@ export default function EmpireConsole() {
           </div>
         )}
       </section>
+
+      {/* Master DNA 하위 기능 버튼 */}
+      {masterDNA.brand_name && (
+        <section className="mb-6 bg-gray-900/30 p-4 rounded-xl border border-gray-800">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-amber-500 text-xs font-bold">🧬 MASTER DNA</span>
+            <span className="text-[9px] text-gray-500 bg-black/30 px-2 py-0.5 rounded">{masterDNA.brand_name}</span>
+            <span className="text-[9px] text-gray-600">{masterDNA.target}</span>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { id: 'btn_logo', icon: '🎨', label: '로고 생성', prompt: `A minimalist luxury real estate logo for ${masterDNA.brand_name}, high-end emblem, geometric, ${masterDNA.main_color}, flat vector design, clean white background, premium brand identity --no text, typography, letters --v 6.0` },
+              { id: 'btn_poster', icon: '🖼️', label: '포스터 시안', prompt: `A breathtaking cinematic poster for ${masterDNA.brand_name}, featuring ${masterDNA.usp[0] || masterDNA.brand_name}, ${masterDNA.mood}, photorealistic, 8k, advertising photography --ar 9:16 --v 6.0` },
+              { id: 'btn_banner', icon: '📱', label: 'SNS 배너', prompt: `An Instagram advertisement banner for ${masterDNA.brand_name}, targeting ${masterDNA.target}, modern lifestyle visual, ${masterDNA.main_color} accent, premium feel, clean layout, photorealistic --ar 1:1 --v 6.0` },
+              { id: 'btn_card', icon: '🪨', label: '디지털 명함', prompt: `Professional luxury business card design for ${masterDNA.brand_name}, dark marble texture with ${masterDNA.main_color} metallic accents, minimal, clean, cinematic lighting, photorealistic, 8k --ar 16:9 --v 6.0` },
+              { id: 'btn_script', icon: '✍️', label: '광고 대본', prompt: `Write a viral 15-second Korean ad script in 해요체 for ${masterDNA.brand_name}. USP: ${masterDNA.usp.join(', ')}. Target: ${masterDNA.target}. Tone: ${masterDNA.mood}. Make it emotional and conversational.` },
+            ].map((btn) => (
+              <button
+                key={btn.id}
+                onClick={() => {
+                  navigator.clipboard.writeText(btn.prompt);
+                  setToastMsg(`✅ ${btn.label} 프롬프트 복사 완료`);
+                  setTimeout(() => setToastMsg(null), 2000);
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 bg-black/40 hover:bg-amber-900/20 border border-gray-800 hover:border-amber-700/50 rounded-lg text-[10px] text-gray-300 hover:text-amber-300 transition-all"
+              >
+                <span>{btn.icon}</span>
+                <span className="font-bold">{btn.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* STEP 2: 3대 구역 통합 그리드 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
