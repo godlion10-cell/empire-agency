@@ -765,23 +765,129 @@ export default function EmpireConsole() {
             {/* ──── ✂️ 원본 숏폼 요약 탭 ──── */}
             {activeEngine === 'summary' && [
               { id: 'btn_highlight', icon: '📊', label: '하이라이트 추출', highlight: true, action: 'summary' },
-              { id: 'btn_autosub', icon: '💬', label: '자막 자동 생성', prompt: summaryResult?.subtitles ? JSON.stringify(summaryResult.subtitles, null, 2) : `[타임코드 자막 JSON 생성] 영상: ${masterInput}. 형식: [{"start": 0.0, "end": 3.5, "text": "자막 내용"}]` },
-              { id: 'btn_facetrack', icon: '👤', label: '페이스 트래킹 크롭', prompt: summaryResult?.highlights ? `[Face-Track 가이드]\n${summaryResult.highlights.map(h => `${Math.floor(h.start_sec/60)}:${String(h.start_sec%60).padStart(2,'0')} → 피사체 중심 크롭, 감정: ${h.emotion}`).join('\n')}` : `[Face-Track] 원본 영상(${masterInput})의 인물 중심 좌표 추적 → 9:16 세로 크롭 가이드 생성` },
-              { id: 'btn_snsbanner', icon: '📱', label: 'SNS 배너', prompt: `An eye-catching Instagram Reels cover thumbnail for "${summaryResult?.title || masterInput}", bold Korean text overlay, viral style, vibrant colors, vertical format, attention-grabbing --ar 9:16 --v 6.0` },
+              { id: 'btn_autosub', icon: '💬', label: '자막 자동 생성', action: 'subtitle' },
+              { id: 'btn_facetrack', icon: '👤', label: '페이스 트래킹 크롭', action: 'facetrack' },
+              { id: 'btn_snsbanner', icon: '📱', label: 'SNS 배너', action: 'snsbanner' },
             ].map((btn) => (
               <button
                 key={btn.id}
-                onClick={() => {
+                disabled={progress.active}
+                onClick={async () => {
                   if (btn.action === 'summary' && !summaryProcessing) {
                     handleSummaryEngine();
-                  } else {
-                    navigator.clipboard.writeText(btn.prompt || '');
-                    setToastMsg(`✅ ${btn.label} 프롬프트 복사 완료`);
-                    setTimeout(() => setToastMsg(null), 2000);
+                    return;
+                  }
+
+                  if (btn.action === 'subtitle') {
+                    // ── 자막 자동 생성: /api/scrape 호출 ──
+                    if (!masterInput) { setToastMsg('❌ URL을 먼저 입력하세요'); setTimeout(() => setToastMsg(null), 2000); return; }
+                    setProgress({ active: true, percent: 10, status: '💬 자막 엔진 가동 중...', stage: 'subtitle' });
+                    try {
+                      const stageTimers = [
+                        setTimeout(() => setProgress(p => p.active ? { ...p, percent: 30, status: '📄 YouTube 자막 트랙 스캔...' } : p), 2000),
+                        setTimeout(() => setProgress(p => p.active ? { ...p, percent: 50, status: '🧠 AI 자막 생성 중...' } : p), 5000),
+                        setTimeout(() => setProgress(p => p.active ? { ...p, percent: 70, status: '✍️ 타임코드 매핑 중...' } : p), 10000),
+                      ];
+                      const res = await fetch('/api/scrape', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: masterInput }),
+                      });
+                      stageTimers.forEach(t => clearTimeout(t));
+                      const data = await res.json();
+                      if (data.success) {
+                        setProgress({ active: true, percent: 100, status: `✅ 자막 생성 완료! ${data.data?.segment_count || ''}개 세그먼트`, stage: 'done' });
+                        // 자막 데이터를 카피 섹션에 바인딩
+                        setCopyData([{
+                          headline: '💬 자동 생성 자막 (SRT)',
+                          body: data.data?.segments?.slice(0, 8).map(s => `[${s.start}s] ${s.text}`).join('\n') || data.data?.srt_preview || '자막 데이터',
+                          cta: `총 ${data.data?.segment_count || 0}개 세그먼트 · ${data.data?.duration_sec || 0}초`,
+                        }]);
+                      } else {
+                        setProgress({ active: true, percent: 100, status: `❌ ${data.error}`, stage: 'error' });
+                      }
+                    } catch (e) {
+                      setProgress({ active: true, percent: 100, status: `❌ ${e.message}`, stage: 'error' });
+                    }
+                    setTimeout(() => setProgress({ active: false, percent: 0, status: '', stage: '' }), 3000);
+                    return;
+                  }
+
+                  if (btn.action === 'facetrack') {
+                    // ── 페이스 트래킹: /api/process-video 호출 ──
+                    if (!masterInput) { setToastMsg('❌ URL을 먼저 입력하세요'); setTimeout(() => setToastMsg(null), 2000); return; }
+                    setProgress({ active: true, percent: 10, status: '👤 Face-Tracking 엔진 가동...', stage: 'facetrack' });
+                    try {
+                      const stageTimers = [
+                        setTimeout(() => setProgress(p => p.active ? { ...p, percent: 30, status: '🎯 인물 좌표 추적 중...' } : p), 2000),
+                        setTimeout(() => setProgress(p => p.active ? { ...p, percent: 55, status: '📐 9:16 크롭 영역 계산...' } : p), 5000),
+                        setTimeout(() => setProgress(p => p.active ? { ...p, percent: 75, status: '🎬 세로형 리프레이밍...' } : p), 8000),
+                      ];
+                      const res = await fetch('/api/process-video', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          url: masterInput,
+                          mode: 'facetrack',
+                          highlights: summaryResult?.highlights || [],
+                        }),
+                      });
+                      stageTimers.forEach(t => clearTimeout(t));
+                      const data = await res.json();
+                      if (data.success) {
+                        setProgress({ active: true, percent: 100, status: '✅ Face-Track 분석 완료!', stage: 'done' });
+                        setCopyData([{
+                          headline: '👤 Face-Tracking 크롭 가이드',
+                          body: data.data?.guide || data.data?.crops?.map((c, i) => `Scene ${i+1}: x=${c.x} y=${c.y} → 9:16`).join('\n') || 'Face-Track 완료',
+                          cta: '크롭 좌표가 위에 표시되었어요 → 영상 편집 소프트웨어에 적용하세요',
+                        }]);
+                        if (data.data?.videoUrl) setRenderVideo(data.data.videoUrl);
+                      } else {
+                        setProgress({ active: true, percent: 100, status: `❌ ${data.error}`, stage: 'error' });
+                      }
+                    } catch (e) {
+                      setProgress({ active: true, percent: 100, status: `❌ ${e.message}`, stage: 'error' });
+                    }
+                    setTimeout(() => setProgress({ active: false, percent: 0, status: '', stage: '' }), 3000);
+                    return;
+                  }
+
+                  if (btn.action === 'snsbanner') {
+                    // ── SNS 배너: /api/generate-image 호출 ──
+                    setProgress({ active: true, percent: 10, status: '📱 SNS 배너 AI 생성 중...', stage: 'banner' });
+                    try {
+                      const stageTimers = [
+                        setTimeout(() => setProgress(p => p.active ? { ...p, percent: 40, status: '🎨 배너 레이아웃 설계...' } : p), 2000),
+                        setTimeout(() => setProgress(p => p.active ? { ...p, percent: 70, status: '🖼️ 이미지 렌더링...' } : p), 5000),
+                      ];
+                      const bannerPrompt = `An eye-catching Instagram Reels cover thumbnail for "${summaryResult?.source?.title || masterInput}", bold Korean text overlay, viral style, vibrant colors, vertical format, attention-grabbing --ar 9:16 --v 6.0`;
+                      const res = await fetch('/api/generate-image', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt: bannerPrompt, style: 'sns_banner' }),
+                      });
+                      stageTimers.forEach(t => clearTimeout(t));
+                      const data = await res.json();
+                      if (data.success) {
+                        setProgress({ active: true, percent: 100, status: '✅ SNS 배너 생성 완료!', stage: 'done' });
+                        setMjPrompts(prev => ({ ...prev, sns: bannerPrompt }));
+                        if (data.data?.imageUrl) {
+                          setUploadedImages(prev => [...prev, { name: 'SNS배너.png', url: data.data.imageUrl }]);
+                        }
+                      } else {
+                        setProgress({ active: true, percent: 100, status: `❌ ${data.error}`, stage: 'error' });
+                      }
+                    } catch (e) {
+                      setProgress({ active: true, percent: 100, status: `❌ ${e.message}`, stage: 'error' });
+                    }
+                    setTimeout(() => setProgress({ active: false, percent: 0, status: '', stage: '' }), 3000);
+                    return;
                   }
                 }}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-bold transition-all border ${
-                  btn.highlight
+                  progress.active && btn.action !== 'summary' 
+                    ? 'opacity-50 cursor-not-allowed border-gray-800 text-gray-500'
+                    : btn.highlight
                     ? 'bg-cyan-900/30 border-cyan-600/50 text-cyan-300 hover:bg-cyan-800/40 hover:border-cyan-500 shadow-sm shadow-cyan-900/20'
                     : 'bg-black/40 border-gray-800 text-gray-300 hover:bg-cyan-900/20 hover:border-cyan-700/50 hover:text-cyan-300'
                 }`}
