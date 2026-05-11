@@ -1,0 +1,331 @@
+'use client';
+import { useState } from 'react';
+import Link from 'next/link';
+
+export default function EmpireConsole() {
+  const MASTER_PW = "49581"; // 주인님의 전속 비번
+  const [isLocked, setIsLocked] = useState(true);
+  const [inputPw, setInputPw] = useState("");
+  const [showShadowRoom, setShowShadowRoom] = useState(false);
+
+  // 마스터 입력 상태
+  const [masterInput, setMasterInput] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [engineResult, setEngineResult] = useState(null);
+
+  // 구역별 데이터
+  const [copyData, setCopyData] = useState(null);
+  const [visualAssets, setVisualAssets] = useState([]);
+  const [videoCuts, setVideoCuts] = useState([]);
+
+  // 쉐도우 룸 에셋 선택
+  const [selectedAssets, setSelectedAssets] = useState([]);
+
+  // 쉐도우 룸 모드 활성화 로직
+  const handleShadowToggle = () => {
+    if (isLocked) {
+      const pw = prompt("전속 비번을 입력하십시오:");
+      if (pw === MASTER_PW) {
+        setIsLocked(false);
+        setShowShadowRoom(true);
+        alert("🔒 쉐도우 룸 보안이 해제되었습니다. 관리자 모드 가동.");
+      } else if (pw !== null) {
+        alert("⚠️ 경고: 잘못된 패스워드입니다. 침입 시도가 기록되었습니다.");
+      }
+    } else {
+      setShowShadowRoom(!showShadowRoom);
+    }
+  };
+
+  // 제국 엔진 가동
+  const handleIgnite = async () => {
+    if (!masterInput.trim()) {
+      alert("URL 또는 주제를 입력해주세요.");
+      return;
+    }
+    setIsProcessing(true);
+    setEngineResult(null);
+
+    try {
+      // 카피 생성
+      const copyRes = await fetch('/api/ad-copy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientName: masterInput,
+          usps: [masterInput],
+          targetAudience: '30-50대 고소득 전문직',
+        })
+      });
+      const copyResult = await copyRes.json();
+      if (copyResult.success) {
+        setCopyData(copyResult.data);
+      }
+
+      // 렌더링 엔진
+      const renderRes = await fetch('/api/render-engine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'M',
+          script: masterInput,
+          videoPrompts: [
+            `Cinematic establishing shot of ${masterInput}, luxury real estate, golden hour, 4K`,
+            `Slow motion detail shot of premium interior design, marble and wood, warm lighting`,
+            `Aerial drone sweeping shot over urban landscape at sunset, volumetric clouds, epic scale`
+          ],
+        })
+      });
+      const renderResult = await renderRes.json();
+      if (renderResult.success) {
+        setVideoCuts(renderResult.data.videos || []);
+        setEngineResult(renderResult.data);
+      }
+
+      setIsProcessing(false);
+    } catch (error) {
+      setIsProcessing(false);
+      alert("엔진 오류: " + error.message);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-black text-gray-100 p-4 md:p-6 font-sans">
+      {/* HEADER: 통합 컨트롤 바 */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-800 pb-4 mb-8 gap-4">
+        <div className="flex items-center gap-4">
+          <h1 className="text-xl md:text-2xl font-black tracking-tighter text-amber-500">🏛️ EMPIRE INTEGRATED CONSOLE</h1>
+          <Link href="/" className="text-xs text-gray-600 hover:text-gray-400 transition-colors">
+            ← 관제소
+          </Link>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-gray-500">
+            STATUS: <span className={isProcessing ? 'text-amber-400 animate-pulse' : 'text-emerald-400'}>
+              {isProcessing ? 'PROCESSING' : 'ACTIVE'}
+            </span>
+          </span>
+          {/* 쉐도우 룸 스위치 */}
+          <button
+            onClick={handleShadowToggle}
+            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
+              showShadowRoom
+                ? 'bg-amber-600 border-amber-500 text-white shadow-lg shadow-amber-900/30'
+                : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600'
+            }`}
+          >
+            {showShadowRoom ? "🔒 쉐도우 룸 ON" : "🔓 쉐도우 룸 OFF"}
+          </button>
+        </div>
+      </header>
+
+      {/* STEP 1: 마스터 입력 포털 */}
+      <section className="mb-10 bg-gray-900/50 p-6 md:p-8 rounded-2xl border border-gray-800 shadow-2xl">
+        <h2 className="text-amber-500 font-bold mb-4 text-sm uppercase tracking-widest">🔻 STEP 1: 마스터 입력 포털</h2>
+        <div className="flex flex-col md:flex-row gap-4">
+          <input
+            type="text"
+            value={masterInput}
+            onChange={(e) => setMasterInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleIgnite()}
+            placeholder="유튜브 URL, 영상 주소, 또는 프로젝트 키워드를 입력하십시오..."
+            className="flex-1 bg-black border border-gray-700 rounded-lg p-3.5 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 outline-none transition-all placeholder-gray-600"
+          />
+          <button
+            onClick={handleIgnite}
+            disabled={isProcessing}
+            className={`px-8 py-3.5 rounded-lg font-bold transition-all text-sm whitespace-nowrap ${
+              isProcessing
+                ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black shadow-lg shadow-amber-900/30'
+            }`}
+          >
+            {isProcessing ? '⏳ 제국 엔진 가동 중...' : '⚡ 제국 엔진 가동'}
+          </button>
+        </div>
+
+        {/* 엔진 상태 표시 */}
+        {isProcessing && (
+          <div className="mt-4 flex items-center gap-3 text-xs text-amber-400">
+            <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+            카피라이팅 AI + 렌더링 엔진 + 비디오 시퀀스 동시 가동 중...
+          </div>
+        )}
+      </section>
+
+      {/* STEP 2: 3대 구역 통합 그리드 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+        {/* 구역 A: 기획/카피 */}
+        <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 hover:border-gray-700 transition-colors">
+          <h3 className="text-blue-400 font-bold mb-4 border-b border-gray-800 pb-2 text-sm flex items-center gap-2">
+            📝 기획 & 카피라이팅
+            {copyData && <span className="text-[10px] px-1.5 py-0.5 bg-blue-900/30 text-blue-300 rounded">READY</span>}
+          </h3>
+          <div className="space-y-3 text-sm text-gray-400">
+            {copyData ? (
+              copyData.map((copy, i) => (
+                <div key={i} className="bg-black/50 p-3 rounded-lg border border-gray-800/50">
+                  <p className="text-white font-bold text-xs mb-1">{copy.headline}</p>
+                  <p className="text-gray-400 text-[11px] leading-relaxed">{copy.body}</p>
+                  <p className="text-cyan-400 text-[10px] mt-1.5 font-medium">{copy.cta}</p>
+                </div>
+              ))
+            ) : (
+              <p className="bg-black/30 p-4 rounded-lg text-center text-gray-600 text-xs italic">
+                엔진 가동 후 카피가 생성됩니다
+              </p>
+            )}
+            {copyData && (
+              <button
+                onClick={() => {
+                  const all = copyData.map(c => `${c.headline}\n${c.body}\n${c.cta}`).join('\n\n---\n\n');
+                  navigator.clipboard.writeText(all);
+                  alert('✅ 카피 전체 복사 완료');
+                }}
+                className="w-full py-2 bg-gray-800 hover:bg-gray-700 rounded text-xs transition-colors"
+              >
+                📋 카피 전체 복사
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 구역 B: 비주얼 시안 (미드저니) */}
+        <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 hover:border-gray-700 transition-colors text-sm">
+          <h3 className="text-emerald-400 font-bold mb-4 border-b border-gray-800 pb-2 text-sm flex items-center gap-2">
+            🎨 비주얼 브랜딩
+            {engineResult && <span className="text-[10px] px-1.5 py-0.5 bg-emerald-900/30 text-emerald-300 rounded">READY</span>}
+          </h3>
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <div className="bg-black aspect-video rounded-lg flex items-center justify-center text-[10px] text-gray-600 border border-gray-800 hover:border-gray-700 transition-colors cursor-pointer">
+              📸 포스터 시안
+            </div>
+            <div className="bg-black aspect-video rounded-lg flex items-center justify-center text-[10px] text-gray-600 border border-gray-800 hover:border-gray-700 transition-colors cursor-pointer">
+              ◈ 로고/간판
+            </div>
+            <div className="bg-black aspect-video rounded-lg flex items-center justify-center text-[10px] text-gray-600 border border-gray-800 hover:border-gray-700 transition-colors cursor-pointer">
+              📱 SNS 배너
+            </div>
+            <div className="bg-black aspect-video rounded-lg flex items-center justify-center text-[10px] text-gray-600 border border-gray-800 hover:border-gray-700 transition-colors cursor-pointer">
+              💳 명함
+            </div>
+          </div>
+          <button className="w-full py-2 border border-gray-700 hover:border-gray-600 rounded text-xs mb-3 transition-colors">
+            📋 프롬프트 일괄 복사
+          </button>
+          <label className="block w-full py-2.5 border-2 border-dashed border-gray-700 hover:border-emerald-800 rounded-lg text-center text-[10px] text-gray-500 cursor-pointer transition-colors">
+            📁 미드저니 결과물 업로드 (드래그 앤 드롭)
+            <input type="file" className="hidden" accept="image/*" multiple />
+          </label>
+        </div>
+
+        {/* 구역 C: 영상/오디오 (런웨이/루마) */}
+        <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 hover:border-gray-700 transition-colors">
+          <h3 className="text-purple-400 font-bold mb-4 border-b border-gray-800 pb-2 text-sm flex items-center gap-2">
+            🎬 시네마틱 영상
+            {videoCuts.length > 0 && <span className="text-[10px] px-1.5 py-0.5 bg-purple-900/30 text-purple-300 rounded">{videoCuts.length} CUTS</span>}
+          </h3>
+          <div className="space-y-3">
+            {videoCuts.length > 0 ? (
+              videoCuts.map((cut, i) => (
+                <div key={i} className="bg-black/50 p-3 rounded-lg border border-gray-800/50">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-bold text-purple-400">CUT {i + 1}</span>
+                    <span className="text-[9px] text-gray-600">{cut.status === 'mock' ? 'MOCK' : 'LIVE'}</span>
+                  </div>
+                  <p className="text-[10px] text-gray-400 leading-relaxed">{cut.prompt?.substring(0, 80)}...</p>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(cut.prompt || ''); alert(`✅ Cut ${i+1} 복사 완료`); }}
+                    className="mt-1.5 text-[10px] text-cyan-400 hover:text-cyan-300 transition-colors"
+                  >
+                    📋 프롬프트 복사
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div className="text-[11px] text-gray-600 bg-black/30 p-3 rounded-lg text-center">
+                엔진 가동 후 3-Cut 시퀀스가 생성됩니다
+              </div>
+            )}
+
+            {/* 오디오 플레이어 */}
+            {engineResult?.audio?.dataUrl && (
+              <div className="bg-black/50 p-3 rounded-lg border border-gray-800/50">
+                <p className="text-[10px] text-amber-400 font-bold mb-1.5">🔊 AI 내레이션 ({engineResult.audio.source})</p>
+                <audio src={engineResult.audio.dataUrl} controls className="w-full h-8" />
+              </div>
+            )}
+
+            <label className="block border-2 border-dashed border-gray-800 hover:border-purple-800 p-4 rounded-lg text-center text-xs text-gray-600 cursor-pointer transition-colors">
+              🎥 최종 영상 MP4 투하
+              <input type="file" className="hidden" accept="video/*" />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* STEP 3: 쉐도우 룸 (비밀 시사회실) */}
+      {showShadowRoom && (
+        <section className="bg-amber-950/20 border-2 border-amber-900/40 p-6 md:p-8 rounded-2xl relative overflow-hidden">
+          {/* 배경 글로우 */}
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-900/5 to-transparent pointer-events-none" />
+
+          <div className="relative z-10">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+              <h2 className="text-amber-500 font-black text-lg md:text-xl flex items-center gap-3">
+                🔒 STEP 3: 비밀 시사회실 (SHADOW ROOM)
+              </h2>
+              <span className="bg-amber-600 text-white text-[10px] px-3 py-1 rounded-full font-bold tracking-wider">
+                MASTER ACCESS GRANTED
+              </span>
+            </div>
+
+            {/* 에셋 선택 그리드 */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              {['포스터_01', '로고_최종', '숏폼_영상', 'AI_내레이션'].map((asset, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    setSelectedAssets(prev =>
+                      prev.includes(asset) ? prev.filter(a => a !== asset) : [...prev, asset]
+                    );
+                  }}
+                  className={`p-3 rounded-lg text-xs font-medium transition-all border ${
+                    selectedAssets.includes(asset)
+                      ? 'bg-amber-900/30 border-amber-700 text-amber-300 shadow-inner'
+                      : 'bg-black/30 border-gray-800 text-gray-500 hover:border-gray-700'
+                  }`}
+                >
+                  {selectedAssets.includes(asset) ? '✅' : '⬜'} {asset}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center">
+              <div className="flex-1 bg-black/50 p-4 rounded-lg border border-amber-900/30 text-gray-400 text-sm">
+                {selectedAssets.length > 0
+                  ? `선택된 ${selectedAssets.length}개 에셋: [${selectedAssets.join(', ')}]`
+                  : '에셋을 선택하면 고객용 보안 링크에 포함됩니다'}
+              </div>
+              <button
+                disabled={selectedAssets.length === 0}
+                className={`px-6 py-3 rounded-lg font-bold text-sm whitespace-nowrap transition-all ${
+                  selectedAssets.length > 0
+                    ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-900/30'
+                    : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                🔗 고객용 보안 링크 생성
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 하단 */}
+      <footer className="mt-10 text-center text-[10px] text-gray-700 tracking-widest">
+        EMPIRE INTEGRATED CONSOLE — V1.0 · MASTER ACCESS ONLY
+      </footer>
+    </div>
+  );
+}

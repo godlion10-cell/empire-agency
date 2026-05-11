@@ -18,12 +18,20 @@ export default function AgencyDashboard() {
           <h1 className="text-2xl md:text-3xl font-bold text-amber-500">🏢 엠파이어 대행사 통합 관제소</h1>
           <p className="text-gray-400 mt-2">클라이언트 광고 캠페인 통합 통제 및 배포</p>
         </div>
-        <Link
-          href="/agency/campaigns/new"
-          className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-lg font-bold transition-all shadow-lg shadow-amber-900/30 hover:shadow-amber-900/50"
-        >
-          + 새 캠페인 생성
-        </Link>
+        <div className="flex gap-3">
+          <Link
+            href="/console"
+            className="bg-gray-800 hover:bg-gray-700 text-amber-400 border border-amber-600/30 px-5 py-2.5 rounded-lg font-bold transition-all text-sm"
+          >
+            🏛️ 통합 콘솔
+          </Link>
+          <Link
+            href="/agency/campaigns/new"
+            className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-lg font-bold transition-all shadow-lg shadow-amber-900/30 hover:shadow-amber-900/50"
+          >
+            + 새 캠페인 생성
+          </Link>
+        </div>
       </header>
 
       {/* 핵심 지표 카드 */}
