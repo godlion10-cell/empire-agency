@@ -101,7 +101,7 @@ export default function EmpireConsole() {
     if (!masterInput || summaryProcessing) return;
     setSummaryProcessing(true);
     setSummaryResult(null);
-    setToastMsg('✂️ YouTube 자막 스캔 + AI 하이라이트 분석 중...');
+    setToastMsg('✂️ YouTube 자막 스캔 중... (AI 분석까지 최대 60초 소요)');
 
     try {
       const res = await fetch('/api/engine/summary', {
@@ -112,7 +112,9 @@ export default function EmpireConsole() {
       const data = await res.json();
       if (data.success) {
         setSummaryResult(data.data);
-        setToastMsg(`✅ 하이라이트 ${data.data.highlights?.length || 0}개 추출 완료!`);
+        const src = data.data.source?.transcriptSource;
+        const srcLabel = src === 'gemini' ? '🟣 Gemini AI 직접 분석' : src === 'scrape' ? '🔵 웹 스크래핑' : '🟢 자막 추출';
+        setToastMsg(`✅ 하이라이트 ${data.data.highlights?.length || 0}개 추출 완료! (${srcLabel})`);
       } else {
         setToastMsg(`❌ ${data.error}`);
       }

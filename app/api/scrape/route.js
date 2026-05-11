@@ -4,6 +4,9 @@ import { getRenderDir, getPublicUrl, renderFileName } from '@/lib/render-path';
 import fs from 'fs';
 import path from 'path';
 
+// Vercel 서버리스 타임아웃 확장 (Gemini Level 3 분석용)
+export const maxDuration = 60;
+
 /**
  * POST /api/scrape
  * 

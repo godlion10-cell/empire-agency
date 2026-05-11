@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { fetchTranscript } from '@/lib/youtube-transcript';
 
+// Vercel 서버리스 타임아웃 확장 (기본 10초 → 60초)
+export const maxDuration = 60;
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 /**
@@ -107,6 +110,7 @@ JSON 형식:
         source: {
           videoId: transcriptData.video_id,
           duration: transcriptData.duration_sec,
+          transcriptSource: transcriptData.source, // 'library' | 'scrape' | 'gemini'
         }
       }
     });
