@@ -17,9 +17,76 @@ export default function EmpireConsole() {
   const [videoCuts, setVideoCuts] = useState([]);
   const [mjPrompts, setMjPrompts] = useState(null); // MJ 프롬프트 4종
   const [toastMsg, setToastMsg] = useState(null);
+  const [uploadedImages, setUploadedImages] = useState([]); // 업로드 썸네일
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [videoJobs, setVideoJobs] = useState([]); // 영상 생성 작업
+  const [videoSourceImg, setVideoSourceImg] = useState(null); // 3구역 소스 이미지
 
   // 쉐도우 룸 에셋 선택
   const [selectedAssets, setSelectedAssets] = useState([]);
+
+  // 드래그 앤 드롭 핸들러
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    if (files.length === 0) return;
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setUploadedImages(prev => [...prev, { name: file.name, url: ev.target.result, file }]);
+      };
+      reader.readAsDataURL(file);
+    });
+    setToastMsg(`✅ ${files.length}개 이미지 업로드 완료`);
+    setTimeout(() => setToastMsg(null), 2000);
+  };
+
+  const handleFileInput = (e) => {
+    const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setUploadedImages(prev => [...prev, { name: file.name, url: ev.target.result, file }]);
+      };
+      reader.readAsDataURL(file);
+    });
+    if (files.length > 0) {
+      setToastMsg(`✅ ${files.length}개 이미지 업로드 완료`);
+      setTimeout(() => setToastMsg(null), 2000);
+    }
+  };
+
+  // 영상 생성 (Image-to-Video)
+  const handleVideoGenerate = async (prompt, imageUrl, provider = 'runway') => {
+    const jobId = Date.now();
+    setVideoJobs(prev => [...prev, { id: jobId, prompt, imageUrl, provider, status: 'processing', progress: 0 }]);
+    setToastMsg(`🎬 ${provider.toUpperCase()} 영상 생성 시작...`);
+    setTimeout(() => setToastMsg(null), 2000);
+
+    try {
+      const res = await fetch('/api/video-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, imageUrl, provider, duration: 5 }),
+      });
+      const data = await res.json();
+      setVideoJobs(prev => prev.map(j => j.id === jobId
+        ? { ...j, status: data.success ? (data.data.status || 'complete') : 'error', result: data.data, error: data.error }
+        : j
+      ));
+      if (data.success) {
+        setToastMsg(`✅ ${provider.toUpperCase()} 영상 작업 완료`);
+      } else {
+        setToastMsg(`❌ 영상 생성 실패: ${data.error}`);
+      }
+      setTimeout(() => setToastMsg(null), 3000);
+    } catch (err) {
+      setVideoJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: 'error', error: err.message } : j));
+      setToastMsg(`❌ 에러: ${err.message}`);
+      setTimeout(() => setToastMsg(null), 3000);
+    }
+  };
 
   // 쉐도우 룸 모드 활성화 로직 — 서버사이드 검증
   const handleShadowToggle = async () => {
@@ -265,40 +332,120 @@ export default function EmpireConsole() {
           >
             📋 프롬프트 일괄 복사 {mjPrompts ? '(4종)' : ''}
           </button>
-          <label className="block w-full py-2.5 border-2 border-dashed border-gray-700 hover:border-emerald-800 rounded-lg text-center text-[10px] text-gray-500 cursor-pointer transition-colors">
-            📁 미드저니 결과물 업로드 (드래그 앤 드롭)
-            <input type="file" className="hidden" accept="image/*" multiple />
-          </label>
+          {/* 업로드 썸네일 표시 */}
+          {uploadedImages.length > 0 && (
+            <div className="grid grid-cols-4 gap-1.5 mb-3">
+              {uploadedImages.map((img, i) => (
+                <div key={i} className="relative group">
+                  <img src={img.url} alt={img.name} className="w-full aspect-square object-cover rounded-lg border border-gray-700" />
+                  <button
+                    onClick={() => setUploadedImages(prev => prev.filter((_, idx) => idx !== i))}
+                    className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 text-white text-[8px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                  >×</button>
+                  <button
+                    onClick={() => { setVideoSourceImg(img.url); setToastMsg(`✅ ${img.name} → 3구역 소스로 선택`); setTimeout(() => setToastMsg(null), 2000); }}
+                    className="absolute bottom-0 left-0 right-0 bg-purple-600/80 text-white text-[7px] py-0.5 text-center opacity-0 group-hover:opacity-100 transition-opacity rounded-b-lg"
+                  >🎬 영상 소스</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* 드래그 앤 드롭 영역 */}
+          <div
+            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={handleDrop}
+            onClick={() => document.getElementById('mj-upload').click()}
+            className={`block w-full py-4 border-2 border-dashed rounded-lg text-center text-[10px] cursor-pointer transition-all ${
+              isDragOver
+                ? 'border-emerald-400 bg-emerald-900/20 text-emerald-300 scale-[1.02]'
+                : 'border-gray-700 hover:border-emerald-800 text-gray-500'
+            }`}
+          >
+            {isDragOver ? '🎯 여기에 놓으세요!' : '📁 미드저니 결과물 업로드 (드래그 앤 드롭 또는 클릭)'}
+            <input id="mj-upload" type="file" className="hidden" accept="image/*" multiple onChange={handleFileInput} />
+          </div>
         </div>
 
         {/* 구역 C: 영상/오디오 (런웨이/루마) */}
         <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 hover:border-gray-700 transition-colors">
           <h3 className="text-purple-400 font-bold mb-4 border-b border-gray-800 pb-2 text-sm flex items-center gap-2">
             🎬 시네마틱 영상
-            {videoCuts.length > 0 && <span className="text-[10px] px-1.5 py-0.5 bg-purple-900/30 text-purple-300 rounded">{videoCuts.length} CUTS</span>}
+            {videoJobs.length > 0 && <span className="text-[10px] px-1.5 py-0.5 bg-purple-900/30 text-purple-300 rounded">{videoJobs.length} JOBS</span>}
           </h3>
           <div className="space-y-3">
-            {videoCuts.length > 0 ? (
-              videoCuts.map((cut, i) => (
-                <div key={i} className="bg-black/50 p-3 rounded-lg border border-gray-800/50">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] font-bold text-purple-400">CUT {i + 1}</span>
-                    <span className="text-[9px] text-gray-600">{cut.status === 'mock' ? 'MOCK' : 'LIVE'}</span>
-                  </div>
-                  <p className="text-[10px] text-gray-400 leading-relaxed">{cut.prompt?.substring(0, 80)}...</p>
-                  <button
-                    onClick={() => { navigator.clipboard.writeText(cut.prompt || ''); alert(`✅ Cut ${i+1} 복사 완료`); }}
-                    className="mt-1.5 text-[10px] text-cyan-400 hover:text-cyan-300 transition-colors"
-                  >
-                    📋 프롬프트 복사
-                  </button>
-                </div>
-              ))
-            ) : (
-              <div className="text-[11px] text-gray-600 bg-black/30 p-3 rounded-lg text-center">
-                엔진 가동 후 3-Cut 시퀀스가 생성됩니다
+            {/* 소스 이미지 표시 */}
+            {videoSourceImg && (
+              <div className="bg-black/50 p-2 rounded-lg border border-purple-800/50">
+                <p className="text-[9px] text-purple-400 font-bold mb-1">📸 소스 이미지 (Image→Video)</p>
+                <img src={videoSourceImg} alt="Video source" className="w-full aspect-video object-cover rounded" />
               </div>
             )}
+
+            {/* 이미지 드롭 영역 */}
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+                if (files[0]) {
+                  const reader = new FileReader();
+                  reader.onload = (ev) => { setVideoSourceImg(ev.target.result); setToastMsg('✅ 영상 소스 이미지 설정 완료'); setTimeout(() => setToastMsg(null), 2000); };
+                  reader.readAsDataURL(files[0]);
+                }
+              }}
+              onClick={() => document.getElementById('video-src-upload').click()}
+              className="border-2 border-dashed border-gray-800 hover:border-purple-700 p-3 rounded-lg text-center text-[10px] text-gray-600 cursor-pointer transition-colors"
+            >
+              {videoSourceImg ? '🔄 소스 이미지 교체 (드래그 또는 클릭)' : '📸 소스 이미지 드롭 (Image→Video)'}
+              <input id="video-src-upload" type="file" className="hidden" accept="image/*" onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) { const reader = new FileReader(); reader.onload = (ev) => setVideoSourceImg(ev.target.result); reader.readAsDataURL(file); }
+              }} />
+            </div>
+
+            {/* 영상 생성 버튼 */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handleVideoGenerate(
+                  mjPrompts?.poster || `Cinematic shot of ${masterInput || 'luxury apartment'}, golden hour, 4K`,
+                  videoSourceImg,
+                  'runway'
+                )}
+                className="py-2.5 bg-purple-900/50 hover:bg-purple-800/50 border border-purple-700/50 rounded-lg text-[10px] text-purple-300 font-bold transition-colors"
+              >
+                🎬 Runway 렌더링
+              </button>
+              <button
+                onClick={() => handleVideoGenerate(
+                  mjPrompts?.poster || `Cinematic shot of ${masterInput || 'luxury apartment'}, golden hour, 4K`,
+                  videoSourceImg,
+                  'luma'
+                )}
+                className="py-2.5 bg-indigo-900/50 hover:bg-indigo-800/50 border border-indigo-700/50 rounded-lg text-[10px] text-indigo-300 font-bold transition-colors"
+              >
+                ✨ Luma 렌더링
+              </button>
+            </div>
+
+            {/* 영상 작업 목록 */}
+            {videoJobs.map((job) => (
+              <div key={job.id} className={`p-3 rounded-lg border text-[10px] ${
+                job.status === 'processing' ? 'bg-purple-900/20 border-purple-700/30 animate-pulse' :
+                job.status === 'complete' ? 'bg-emerald-900/20 border-emerald-700/30' :
+                'bg-red-900/20 border-red-700/30'
+              }`}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-purple-400">{job.provider.toUpperCase()}</span>
+                  <span className={job.status === 'processing' ? 'text-amber-400' : job.status === 'complete' ? 'text-emerald-400' : 'text-red-400'}>
+                    {job.status === 'processing' ? '⏳ 렌더링 중...' : job.status === 'complete' ? '✅ 완료' : '❌ 에러'}
+                  </span>
+                </div>
+                <p className="text-gray-500 truncate">{job.prompt?.substring(0, 60)}...</p>
+                {job.imageUrl && <p className="text-gray-600 text-[8px]">📸 Image→Video 모드</p>}
+                {job.result?.message && <p className="text-gray-400 mt-1 text-[9px]">{job.result.message}</p>}
+              </div>
+            ))}
 
             {/* 오디오 플레이어 */}
             {engineResult?.audio?.dataUrl && (
@@ -307,11 +454,6 @@ export default function EmpireConsole() {
                 <audio src={engineResult.audio.dataUrl} controls className="w-full h-8" />
               </div>
             )}
-
-            <label className="block border-2 border-dashed border-gray-800 hover:border-purple-800 p-4 rounded-lg text-center text-xs text-gray-600 cursor-pointer transition-colors">
-              🎥 최종 영상 MP4 투하
-              <input type="file" className="hidden" accept="video/*" />
-            </label>
           </div>
         </div>
       </div>
