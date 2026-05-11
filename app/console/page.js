@@ -746,12 +746,16 @@ export default function EmpireConsole() {
 
       {/* STEP 2: 3대 구역 통합 그리드 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-        <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 hover:border-gray-700 transition-colors">
+        <div className={`relative bg-gray-900 p-6 rounded-xl border-2 transition-all duration-500 ${
+          copyGenerating ? 'border-blue-500/60 shadow-[0_0_15px_rgba(59,130,246,0.25)] animate-pulse'
+          : copyData ? 'border-[#39FF14]/60 shadow-[0_0_15px_rgba(57,255,20,0.2)]'
+          : 'border-gray-800 hover:border-gray-700'
+        }`}>
+          {!copyGenerating && copyData && <span className="absolute top-3 right-3 bg-[#39FF14] text-black text-[10px] font-bold px-2 py-0.5 rounded shadow-[0_0_8px_rgba(57,255,20,0.4)]">READY</span>}
           <h3 className="text-blue-400 font-bold mb-4 border-b border-gray-800 pb-2 text-sm flex items-center gap-2">
             📝 기획 & 카피라이팅
-            {copyGenerating && <span className="text-[10px] px-1.5 py-0.5 bg-blue-900/30 text-blue-300 rounded animate-pulse">AI 기획 중...</span>}
-            {!copyGenerating && copyData && <span className="text-[10px] px-1.5 py-0.5 bg-blue-900/30 text-blue-300 rounded">READY</span>}
-            {selectedHighlight && <span className="text-[9px] text-gray-500 ml-auto">#{selectedHighlight.rank || '1'} 하이라이트 기반</span>}
+            {copyGenerating && <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-300 rounded animate-pulse">⏳ AI 기획 중...</span>}
+            {selectedHighlight && <span className="text-[9px] text-gray-500 ml-auto">#{selectedHighlight.rank || '1'} 기반</span>}
           </h3>
           <div className="space-y-3 text-sm text-gray-400">
             {copyGenerating ? (
@@ -790,11 +794,16 @@ export default function EmpireConsole() {
         </div>
 
         {/* 구역 B: 비주얼 시안 (미드저니) */}
-        <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 hover:border-gray-700 transition-colors text-sm">
+        <div className={`relative bg-gray-900 p-6 rounded-xl border-2 transition-all duration-500 text-sm ${
+          visualGenerating ? 'border-emerald-500/60 shadow-[0_0_15px_rgba(16,185,129,0.25)] animate-pulse'
+          : mjPrompts ? 'border-[#39FF14]/60 shadow-[0_0_15px_rgba(57,255,20,0.2)]'
+          : 'border-gray-800 hover:border-gray-700'
+        }`}>
+          {!visualGenerating && mjPrompts && <span className="absolute top-3 right-3 bg-[#39FF14] text-black text-[10px] font-bold px-2 py-0.5 rounded shadow-[0_0_8px_rgba(57,255,20,0.4)]">READY</span>}
           <h3 className="text-emerald-400 font-bold mb-4 border-b border-gray-800 pb-2 text-sm flex items-center gap-2">
             🎨 비주얼 브랜딩
-            {visualGenerating && <span className="text-[10px] px-1.5 py-0.5 bg-emerald-900/30 text-emerald-300 rounded animate-pulse">AI 생성 중...</span>}
-            {!visualGenerating && mjPrompts && <span className="text-[10px] px-1.5 py-0.5 bg-emerald-900/30 text-emerald-300 rounded">4 PROMPTS</span>}
+            {visualGenerating && <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-300 rounded animate-pulse">⏳ AI 생성 중...</span>}
+            {!visualGenerating && mjPrompts && <span className="text-[10px] px-1.5 py-0.5 bg-emerald-900/30 text-emerald-300 rounded">4종</span>}
           </h3>
           {visualGenerating && (
             <div className="bg-black/30 p-4 rounded-lg text-center mb-4">
@@ -818,15 +827,16 @@ export default function EmpireConsole() {
                     setTimeout(() => setToastMsg(null), 2000);
                   }
                 }}
-                className={`bg-black aspect-video rounded-lg flex flex-col items-center justify-center text-[10px] border transition-all cursor-pointer ${
+                className={`relative bg-black aspect-video rounded-lg flex flex-col items-center justify-center text-[10px] border-2 transition-all duration-300 cursor-pointer ${
                   mjPrompts?.[item.key]
-                    ? 'border-emerald-800/50 hover:border-emerald-600 text-emerald-400'
+                    ? 'border-[#39FF14]/50 hover:border-[#39FF14] text-emerald-400 shadow-[0_0_8px_rgba(57,255,20,0.15)] hover:shadow-[0_0_12px_rgba(57,255,20,0.3)]'
                     : 'border-gray-800 hover:border-gray-700 text-gray-600'
                 }`}
               >
+                {mjPrompts?.[item.key] && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#39FF14] shadow-[0_0_6px_rgba(57,255,20,0.6)]"></span>}
                 <span className="text-lg mb-1">{item.icon}</span>
                 <span>{item.label}</span>
-                {mjPrompts?.[item.key] && <span className="text-[8px] text-gray-500 mt-0.5">클릭으로 복사</span>}
+                {mjPrompts?.[item.key] && <span className="text-[8px] text-[#39FF14]/70 mt-0.5">클릭 → 복사</span>}
               </div>
             ))}
           </div>
@@ -887,10 +897,16 @@ export default function EmpireConsole() {
         </div>
 
         {/* 구역 C: 영상/오디오 (런웨이/루마) */}
-        <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 hover:border-gray-700 transition-colors">
+        <div className={`relative bg-gray-900 p-6 rounded-xl border-2 transition-all duration-500 ${
+          videoJobs.some(j => j.status === 'processing') ? 'border-purple-500/60 shadow-[0_0_15px_rgba(168,85,247,0.25)] animate-pulse'
+          : videoJobs.some(j => j.status === 'complete') ? 'border-[#39FF14]/60 shadow-[0_0_15px_rgba(57,255,20,0.2)]'
+          : 'border-gray-800 hover:border-gray-700'
+        }`}>
+          {videoJobs.some(j => j.status === 'complete') && <span className="absolute top-3 right-3 bg-[#39FF14] text-black text-[10px] font-bold px-2 py-0.5 rounded shadow-[0_0_8px_rgba(57,255,20,0.4)]">READY</span>}
           <h3 className="text-purple-400 font-bold mb-4 border-b border-gray-800 pb-2 text-sm flex items-center gap-2">
             🎬 시네마틱 영상
-            {videoJobs.length > 0 && <span className="text-[10px] px-1.5 py-0.5 bg-purple-900/30 text-purple-300 rounded">{videoJobs.length} JOBS</span>}
+            {videoJobs.some(j => j.status === 'processing') && <span className="text-[10px] px-1.5 py-0.5 bg-purple-500/20 text-purple-300 rounded animate-pulse">⏳ 렌더링 중...</span>}
+            {videoJobs.length > 0 && !videoJobs.some(j => j.status === 'processing') && <span className="text-[10px] px-1.5 py-0.5 bg-purple-900/30 text-purple-300 rounded">{videoJobs.length} JOBS</span>}
           </h3>
           <div className="space-y-3">
             {/* 소스 이미지 표시 */}
