@@ -15,6 +15,8 @@ export default function EmpireConsole() {
   const [copyData, setCopyData] = useState(null);
   const [visualAssets, setVisualAssets] = useState([]);
   const [videoCuts, setVideoCuts] = useState([]);
+  const [mjPrompts, setMjPrompts] = useState(null); // MJ 프롬프트 4종
+  const [toastMsg, setToastMsg] = useState(null);
 
   // 쉐도우 룸 에셋 선택
   const [selectedAssets, setSelectedAssets] = useState([]);
@@ -90,6 +92,15 @@ export default function EmpireConsole() {
         setVideoCuts(renderResult.data.videos || []);
         setEngineResult(renderResult.data);
       }
+
+      // MJ 프롬프트 4종 자동 생성 (입력 키워드 기반)
+      const kw = masterInput;
+      setMjPrompts({
+        poster: `A breathtaking wide aerial shot of ${kw} luxury apartment complex surrounded by a massive lush green park at sunrise, modern architecture, cinematic lighting, photorealistic, 8k, architectural photography --ar 9:16 --v 6.0`,
+        logo: `A minimalist luxury real estate logo for ${kw}, high-end apartment emblem, geometric, gold and dark green, flat vector design, clean white background, premium brand identity --no text, typography, letters --v 6.0`,
+        sns: `A successful young Korean professional relaxing on a luxury ${kw} apartment terrace with a cup of coffee, looking at the park view, warm morning light, premium lifestyle, photorealistic, 8k, advertisement style --ar 1:1 --v 6.0`,
+        card: `High-end luxury ${kw} apartment entrance signage mockup, dark marble stone texture with metallic gold accents, minimal, clean, cinematic lighting, photorealistic, 8k --ar 16:9 --v 6.0`,
+      });
 
       setIsProcessing(false);
     } catch (error) {
@@ -203,24 +214,56 @@ export default function EmpireConsole() {
         <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 hover:border-gray-700 transition-colors text-sm">
           <h3 className="text-emerald-400 font-bold mb-4 border-b border-gray-800 pb-2 text-sm flex items-center gap-2">
             🎨 비주얼 브랜딩
-            {engineResult && <span className="text-[10px] px-1.5 py-0.5 bg-emerald-900/30 text-emerald-300 rounded">READY</span>}
+            {mjPrompts && <span className="text-[10px] px-1.5 py-0.5 bg-emerald-900/30 text-emerald-300 rounded">4 PROMPTS</span>}
           </h3>
           <div className="grid grid-cols-2 gap-2 mb-4">
-            <div className="bg-black aspect-video rounded-lg flex items-center justify-center text-[10px] text-gray-600 border border-gray-800 hover:border-gray-700 transition-colors cursor-pointer">
-              📸 포스터 시안
-            </div>
-            <div className="bg-black aspect-video rounded-lg flex items-center justify-center text-[10px] text-gray-600 border border-gray-800 hover:border-gray-700 transition-colors cursor-pointer">
-              ◈ 로고/간판
-            </div>
-            <div className="bg-black aspect-video rounded-lg flex items-center justify-center text-[10px] text-gray-600 border border-gray-800 hover:border-gray-700 transition-colors cursor-pointer">
-              📱 SNS 배너
-            </div>
-            <div className="bg-black aspect-video rounded-lg flex items-center justify-center text-[10px] text-gray-600 border border-gray-800 hover:border-gray-700 transition-colors cursor-pointer">
-              💳 명함
-            </div>
+            {[
+              { key: 'poster', icon: '📸', label: '포스터 시안' },
+              { key: 'logo', icon: '◈', label: '로고/간판' },
+              { key: 'sns', icon: '📱', label: 'SNS 배너' },
+              { key: 'card', icon: '💳', label: '명함' },
+            ].map((item) => (
+              <div
+                key={item.key}
+                onClick={() => {
+                  if (mjPrompts?.[item.key]) {
+                    navigator.clipboard.writeText(mjPrompts[item.key]);
+                    setToastMsg(`✅ ${item.label} 프롬프트 복사 완료`);
+                    setTimeout(() => setToastMsg(null), 2000);
+                  }
+                }}
+                className={`bg-black aspect-video rounded-lg flex flex-col items-center justify-center text-[10px] border transition-all cursor-pointer ${
+                  mjPrompts?.[item.key]
+                    ? 'border-emerald-800/50 hover:border-emerald-600 text-emerald-400'
+                    : 'border-gray-800 hover:border-gray-700 text-gray-600'
+                }`}
+              >
+                <span className="text-lg mb-1">{item.icon}</span>
+                <span>{item.label}</span>
+                {mjPrompts?.[item.key] && <span className="text-[8px] text-gray-500 mt-0.5">클릭으로 복사</span>}
+              </div>
+            ))}
           </div>
-          <button className="w-full py-2 border border-gray-700 hover:border-gray-600 rounded text-xs mb-3 transition-colors">
-            📋 프롬프트 일괄 복사
+          <button
+            onClick={() => {
+              if (mjPrompts) {
+                const all = Object.entries(mjPrompts)
+                  .map(([k, v]) => `[${k.toUpperCase()}]\n${v}`)
+                  .join('\n\n---\n\n');
+                navigator.clipboard.writeText(all);
+                setToastMsg('✅ 4종 프롬프트 전체 복사 완료');
+                setTimeout(() => setToastMsg(null), 2000);
+              } else {
+                alert('엔진 가동 후 프롬프트가 생성됩니다.');
+              }
+            }}
+            className={`w-full py-2 border rounded text-xs mb-3 transition-colors ${
+              mjPrompts
+                ? 'border-emerald-700 hover:bg-emerald-900/30 text-emerald-400'
+                : 'border-gray-700 hover:border-gray-600 text-gray-500'
+            }`}
+          >
+            📋 프롬프트 일괄 복사 {mjPrompts ? '(4종)' : ''}
           </button>
           <label className="block w-full py-2.5 border-2 border-dashed border-gray-700 hover:border-emerald-800 rounded-lg text-center text-[10px] text-gray-500 cursor-pointer transition-colors">
             📁 미드저니 결과물 업로드 (드래그 앤 드롭)
@@ -350,6 +393,13 @@ export default function EmpireConsole() {
           </ul>
         </div>
       </section>
+
+      {/* Toast 알림 */}
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 bg-emerald-600 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-2xl shadow-emerald-900/50 z-50 animate-bounce">
+          {toastMsg}
+        </div>
+      )}
 
       {/* 하단 */}
       <footer className="mt-6 text-center text-[10px] text-gray-700 tracking-widest">
