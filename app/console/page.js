@@ -24,6 +24,9 @@ export default function EmpireConsole() {
   const [videoSourceImg, setVideoSourceImg] = useState(null); // 3구역 소스 이미지
   const [summaryResult, setSummaryResult] = useState(null); // 엔진2 하이라이트 결과
   const [summaryProcessing, setSummaryProcessing] = useState(false);
+  const [commerceResult, setCommerceResult] = useState(null); // 엔진3 커머스 결과
+  const [commerceProcessing, setCommerceProcessing] = useState(false);
+  const [commerceImage, setCommerceImage] = useState(null); // 상품 이미지
 
   // 쉐도우 룸 에셋 선택
   const [selectedAssets, setSelectedAssets] = useState([]);
@@ -108,6 +111,37 @@ export default function EmpireConsole() {
       setToastMsg(`❌ 에러: ${err.message}`);
     }
     setSummaryProcessing(false);
+    setTimeout(() => setToastMsg(null), 3000);
+  };
+
+  // 엔진 3: 커머스 맞춤 광고
+  const handleCommerceEngine = async () => {
+    if ((!masterInput && !commerceImage) || commerceProcessing) return;
+    setCommerceProcessing(true);
+    setCommerceResult(null);
+    setToastMsg('🛍️ 상품 분석 + 광고 기획 중...');
+
+    try {
+      const res = await fetch('/api/engine/commerce', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: masterInput || undefined,
+          image: commerceImage || undefined,
+          productName: masterInput || '상품',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCommerceResult(data);
+        setToastMsg(`✅ 시나리오 ${data.scenario} 광고 기획 완료!`);
+      } else {
+        setToastMsg(`❌ ${data.error}`);
+      }
+    } catch (err) {
+      setToastMsg(`❌ 에러: ${err.message}`);
+    }
+    setCommerceProcessing(false);
     setTimeout(() => setToastMsg(null), 3000);
   };
 
@@ -399,36 +433,98 @@ export default function EmpireConsole() {
         {/* 엔진 C: 커머스 맞춤 광고 */}
         {activeEngine === 'commerce' && (
           <div>
-            <p className="text-[10px] text-pink-400 mb-3 font-medium">🛍️ 일반 상품 URL을 분석하여 판매용 맞춤형 광고를 렌더링합니다.</p>
-            <div className="flex flex-col md:flex-row gap-4">
-              <input
-                type="text"
-                value={masterInput}
-                onChange={(e) => setMasterInput(e.target.value)}
-                placeholder="상품 URL (쿠팡, 네이버 스토어, 자사몰 등)..."
-                className="flex-1 bg-black border border-gray-700 rounded-lg p-3.5 text-sm focus:border-pink-500 focus:ring-1 focus:ring-pink-500/20 outline-none transition-all placeholder-gray-600"
-              />
-              <button
-                disabled={true}
-                className="px-8 py-3.5 rounded-lg font-bold text-sm whitespace-nowrap bg-gray-800 border border-pink-800/30 text-pink-600 cursor-not-allowed"
-              >
-                🔒 준비 중 (Coming Soon)
-              </button>
+            <p className="text-[10px] text-pink-400 mb-3 font-medium">🛍️ 상품 URL 또는 제품 사진을 분석하여 판매 특화 광고를 렌더링합니다. (두 개 다 넣으면 하이브리드 모드!)</p>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col md:flex-row gap-3">
+                <input
+                  type="text"
+                  value={masterInput}
+                  onChange={(e) => setMasterInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCommerceEngine()}
+                  placeholder="상품 URL (쿠팡, 네이버 스토어, 자사몰 등)..."
+                  className="flex-1 bg-black border border-gray-700 rounded-lg p-3 text-sm focus:border-pink-500 focus:ring-1 focus:ring-pink-500/20 outline-none transition-all placeholder-gray-600"
+                />
+                <div className="flex gap-2">
+                  <label className={`px-4 py-3 rounded-lg text-[10px] font-bold cursor-pointer transition-all border ${
+                    commerceImage ? 'bg-pink-900/30 border-pink-600 text-pink-300' : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-pink-700'
+                  }`}>
+                    {commerceImage ? '✅ 사진 업로드됨' : '📷 제품 사진'}
+                    <input type="file" className="hidden" accept="image/*" onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) { const reader = new FileReader(); reader.onload = (ev) => setCommerceImage(ev.target.result); reader.readAsDataURL(file); }
+                    }} />
+                  </label>
+                  <button
+                    disabled={commerceProcessing || (!masterInput && !commerceImage)}
+                    onClick={handleCommerceEngine}
+                    className={`px-6 py-3 rounded-lg font-bold text-sm whitespace-nowrap transition-all ${
+                      commerceProcessing
+                        ? 'bg-gray-700 text-gray-400 cursor-not-allowed animate-pulse'
+                        : (!masterInput && !commerceImage)
+                        ? 'bg-gray-800 text-pink-700 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-pink-600 to-pink-500 hover:from-pink-500 hover:to-pink-400 text-white shadow-lg shadow-pink-900/30'
+                    }`}
+                  >
+                    {commerceProcessing ? '⏳ AI 분석 중...' : '🛍️ 광고 기획'}
+                  </button>
+                </div>
+              </div>
+              {commerceImage && (
+                <div className="flex items-center gap-3">
+                  <img src={commerceImage} alt="product" className="w-16 h-16 object-cover rounded-lg border border-pink-800" />
+                  <div className="text-[9px] text-gray-500">
+                    <p>시나리오: {masterInput ? 'C (하이브리드)' : 'A (이미지 감성)'}</p>
+                    <p>Gemini Vision 멀티모달 분석</p>
+                  </div>
+                  <button onClick={() => setCommerceImage(null)} className="text-[8px] text-red-500 hover:text-red-400">❌ 제거</button>
+                </div>
+              )}
             </div>
             <div className="mt-4 grid grid-cols-3 gap-3">
-              <div className="bg-black/40 p-3 rounded-lg border border-gray-800 text-center">
-                <p className="text-pink-400 text-xs font-bold">📸 상품샷</p>
-                <p className="text-[9px] text-gray-500 mt-1">AI 상품 이미지 생성</p>
+              <div className={`p-3 rounded-lg border text-center ${!commerceImage && !masterInput ? 'bg-black/40 border-gray-800' : masterInput && commerceImage ? 'bg-pink-900/20 border-pink-700/50' : commerceImage ? 'bg-pink-900/10 border-pink-800/30' : 'bg-pink-900/10 border-pink-800/30'}`}>
+                <p className="text-pink-400 text-xs font-bold">{commerceImage && masterInput ? '🔥 하이브리드' : commerceImage ? '📸 감성 모드' : '📊 논리 모드'}</p>
+                <p className="text-[9px] text-gray-500 mt-1">시나리오 {commerceImage && masterInput ? 'C' : commerceImage ? 'A' : 'B'}</p>
               </div>
               <div className="bg-black/40 p-3 rounded-lg border border-gray-800 text-center">
                 <p className="text-pink-400 text-xs font-bold">📝 설득카피</p>
                 <p className="text-[9px] text-gray-500 mt-1">구매 전환 최적화</p>
               </div>
               <div className="bg-black/40 p-3 rounded-lg border border-gray-800 text-center">
-                <p className="text-pink-400 text-xs font-bold">🎬 숏폼</p>
-                <p className="text-[9px] text-gray-500 mt-1">상품 영상 자동 제작</p>
+                <p className="text-pink-400 text-xs font-bold">🎬 MJ+영상</p>
+                <p className="text-[9px] text-gray-500 mt-1">컨 자동 생성</p>
               </div>
             </div>
+
+            {/* 커머스 결과 */}
+            {commerceResult && (
+              <div className="mt-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-pink-400 text-xs font-bold">🛍️ {commerceResult.scenarioLabel} 결과</h4>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(JSON.stringify(commerceResult.data, null, 2)); setToastMsg('✅ 커머스 JSON 복사 완료'); setTimeout(() => setToastMsg(null), 2000); }}
+                    className="text-[9px] text-pink-500 hover:text-pink-400"
+                  >📋 JSON 복사</button>
+                </div>
+                {commerceResult.data.product_analysis && (
+                  <div className="bg-black/40 p-3 rounded-lg border border-gray-800 text-[10px]">
+                    <p className="text-white font-bold">{commerceResult.data.product_analysis.name || '상품'}</p>
+                    <p className="text-gray-500 mt-1">카테고리: {commerceResult.data.product_analysis.category} · 톤: {commerceResult.data.product_analysis.price_tier}</p>
+                    {commerceResult.data.product_analysis.usp?.length > 0 && <div className="mt-1 flex gap-1 flex-wrap">{commerceResult.data.product_analysis.usp.map((u, i) => <span key={i} className="px-1.5 py-0.5 bg-pink-900/30 text-pink-300 rounded text-[8px]">{u}</span>)}</div>}
+                  </div>
+                )}
+                {commerceResult.data.ad_variants?.map((v, i) => (
+                  <div key={i} className="bg-black/30 p-3 rounded-lg border border-pink-900/30 text-[10px]">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-pink-400 font-bold">{v.angle}</span>
+                      <button onClick={() => { navigator.clipboard.writeText(`${v.headline}\n${v.body}\n${v.cta}`); setToastMsg('✅ 카피 복사'); setTimeout(() => setToastMsg(null), 1500); }} className="text-[8px] text-gray-500 hover:text-pink-400">📋</button>
+                    </div>
+                    <p className="text-white font-bold">{v.headline}</p>
+                    <p className="text-gray-400 mt-1">{v.body}</p>
+                    <p className="text-pink-300 mt-1 font-bold">➡️ {v.cta}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
