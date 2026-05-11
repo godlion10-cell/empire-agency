@@ -532,6 +532,9 @@ export default function EmpireConsole() {
                 <li>ElevenLabs: 스크립트 → 성우 보이스 자동 합성 → MP4 결합</li>
               </ul>
             </li>
+            <li className="mt-2 pt-2 border-t border-gray-800"><strong className="text-red-400">[긴급] 카피라이팅 TOV 전면 수정:</strong> 제 1구역 15초 숏폼 대본 생성 시, 딱딱한 설명문(<span className="text-red-300 line-through">~한다, ~하십시오</span>) 전면 금지. 시청자에게 직접 말을 거는 <span className="text-white">자연스러운 경어체/해요체</span>(~기회예요, ~어떠세요?, ~확인해 보세요)로 출력. <span className="text-emerald-400">✅ 적용됨</span>
+              <div className="mt-1 bg-black/30 p-2 rounded text-[10px] text-gray-500 italic">참고 대본: &ldquo;부산에 다시없을 기회예요. 18만 평 사상공원을 내 집 앞마당처럼 누리는 진정한 하이엔드 라이프!&rdquo;</div>
+            </li>
           </ul>
         </div>
       </section>
