@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
+import fs from 'fs';
+import { getRenderDir, getPublicUrl, renderFileName } from '@/lib/render-path';
 
 const execAsync = promisify(exec);
 
@@ -20,19 +22,18 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: 'URL을 입력해주세요.' }, { status: 400 });
     }
 
+    const renderDir = getRenderDir();
     const scriptPath = path.join(process.cwd(), 'scripts', 'scrape_transcript.py');
-    const outputPath = path.join(process.cwd(), 'public', 'renders', `transcript_${Date.now()}.json`);
-    const srtPath = path.join(process.cwd(), 'public', 'renders', `caption_${Date.now()}.srt`);
+    const outputPath = path.join(renderDir, renderFileName('transcript', '.json'));
+    const srtPath = path.join(renderDir, renderFileName('caption', '.srt'));
 
     let cmd = `python "${scriptPath}" --url "${url}" --output "${outputPath}" --srt "${srtPath}"`;
     if (includeMeta) cmd += ' --meta';
 
     console.log(`🔍 [SCRAPE] 자막 스캔 시작: ${url}`);
 
-    const { stdout, stderr } = await execAsync(cmd, { timeout: 60000 });
+    await execAsync(cmd, { timeout: 60000 });
 
-    // JSON 결과 읽기
-    const fs = await import('fs');
     let result = {};
     if (fs.existsSync(outputPath)) {
       result = JSON.parse(fs.readFileSync(outputPath, 'utf-8'));
@@ -48,7 +49,7 @@ export async function POST(req) {
         duration: result.duration_sec,
         wordCount: result.word_count,
         segmentCount: result.segment_count,
-        srtPath: srtPath.replace(path.join(process.cwd(), 'public'), ''),
+        srtPath: getPublicUrl(srtPath),
         metadata: result.metadata || null,
       }
     });

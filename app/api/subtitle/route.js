@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { getRenderDir, getPublicUrl, renderFileName } from '@/lib/render-path';
 
 const execAsync = promisify(exec);
 
@@ -82,8 +83,7 @@ export async function POST(req) {
     const body = await req.json();
     const { mode = 'convert', segments, scriptText, srtPath: inputSrtPath, videoPath, audioPath, output } = body;
 
-    const renderDir = path.join(process.cwd(), 'public', 'renders');
-    if (!fs.existsSync(renderDir)) fs.mkdirSync(renderDir, { recursive: true });
+    const renderDir = getRenderDir();
 
     const timestamp = Date.now();
 
@@ -117,7 +117,7 @@ export async function POST(req) {
         success: true,
         data: {
           srtPath,
-          publicUrl: `/renders/caption_${timestamp}.srt`,
+          publicUrl: getPublicUrl(srtPath),
           lineCount: srtContent.split('\n\n').filter(b => b.trim()).length,
           preview: srtContent.substring(0, 300),
         }
@@ -145,7 +145,7 @@ export async function POST(req) {
         success: true,
         data: {
           outputPath,
-          publicUrl: outputPath.replace(path.join(process.cwd(), 'public'), ''),
+          publicUrl: getPublicUrl(outputPath),
           fileSizeMB: (stats.size / (1024 * 1024)).toFixed(1),
         }
       });
@@ -201,7 +201,7 @@ export async function POST(req) {
         success: true,
         data: {
           outputPath,
-          publicUrl: outputPath.replace(path.join(process.cwd(), 'public'), ''),
+          publicUrl: getPublicUrl(outputPath),
           fileSizeMB: (stats.size / (1024 * 1024)).toFixed(1),
           hasSrt: !!srtPath,
           hasAudio: !!audioPath,

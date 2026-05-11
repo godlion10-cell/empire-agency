@@ -4,6 +4,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs';
+import { getRenderDir, renderFileName } from '@/lib/render-path';
 
 const execAsync = promisify(exec);
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -29,11 +30,9 @@ export async function POST(req) {
     // ─────────────────────────────────────
     // STEP 1: YouTube 자막 스크래핑
     // ─────────────────────────────────────
+    const renderDir = getRenderDir();
     const scriptPath = path.join(process.cwd(), 'scripts', 'scrape_transcript.py');
-    const outputPath = path.join(process.cwd(), 'public', 'renders', `transcript_${Date.now()}.json`);
-
-    const renderDir = path.dirname(outputPath);
-    if (!fs.existsSync(renderDir)) fs.mkdirSync(renderDir, { recursive: true });
+    const outputPath = path.join(renderDir, renderFileName('transcript', '.json'));
 
     const cmd = `python "${scriptPath}" --url "${url}" --output "${outputPath}" --meta`;
     
