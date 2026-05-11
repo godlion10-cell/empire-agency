@@ -1,56 +1,50 @@
 import { NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import path from 'path';
-import fs from 'fs';
+import { fetchTranscript, segmentsToSrt } from '@/lib/youtube-transcript';
 import { getRenderDir, getPublicUrl, renderFileName } from '@/lib/render-path';
-
-const execAsync = promisify(exec);
+import fs from 'fs';
+import path from 'path';
 
 /**
  * POST /api/scrape
  * 
- * YouTube URL → 자막 텍스트 추출 → AI 분석용 데이터 반환
+ * YouTube URL → 자막 추출 (순수 Node.js — Python 의존성 제거)
+ * 메모리 내 처리, 파일 I/O 최소화
  * 
- * Body: { url: string, includeMeta?: boolean }
+ * Body: { url: string, saveSrt?: boolean }
  */
 export async function POST(req) {
   try {
-    const { url, includeMeta = false } = await req.json();
+    const { url, saveSrt = false } = await req.json();
 
     if (!url) {
       return NextResponse.json({ success: false, error: 'URL을 입력해주세요.' }, { status: 400 });
     }
 
-    const renderDir = getRenderDir();
-    const scriptPath = path.join(process.cwd(), 'scripts', 'scrape_transcript.py');
-    const outputPath = path.join(renderDir, renderFileName('transcript', '.json'));
-    const srtPath = path.join(renderDir, renderFileName('caption', '.srt'));
-
-    let cmd = `python "${scriptPath}" --url "${url}" --output "${outputPath}" --srt "${srtPath}"`;
-    if (includeMeta) cmd += ' --meta';
-
     console.log(`🔍 [SCRAPE] 자막 스캔 시작: ${url}`);
 
-    await execAsync(cmd, { timeout: 60000 });
+    const data = await fetchTranscript(url);
 
-    let result = {};
-    if (fs.existsSync(outputPath)) {
-      result = JSON.parse(fs.readFileSync(outputPath, 'utf-8'));
+    console.log(`✅ [SCRAPE] 자막 추출 완료: ${data.segment_count}개 세그먼트, ${data.duration_sec}초`);
+
+    // SRT 파일 저장 (요청 시에만)
+    let srtUrl = null;
+    if (saveSrt) {
+      const renderDir = getRenderDir();
+      const srtPath = path.join(renderDir, renderFileName('caption', '.srt'));
+      fs.writeFileSync(srtPath, segmentsToSrt(data.segments), 'utf-8');
+      srtUrl = getPublicUrl(srtPath);
     }
-
-    console.log(`✅ [SCRAPE] 자막 추출 완료: ${result.segment_count || 0}개 세그먼트`);
 
     return NextResponse.json({
       success: true,
       data: {
-        videoId: result.video_id,
-        fullText: result.full_text,
-        duration: result.duration_sec,
-        wordCount: result.word_count,
-        segmentCount: result.segment_count,
-        srtPath: getPublicUrl(srtPath),
-        metadata: result.metadata || null,
+        videoId: data.video_id,
+        fullText: data.full_text,
+        duration: data.duration_sec,
+        wordCount: data.word_count,
+        segmentCount: data.segment_count,
+        segments: data.segments,
+        srtUrl,
       }
     });
   } catch (error) {

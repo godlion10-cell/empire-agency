@@ -1,21 +1,16 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import path from 'path';
-import fs from 'fs';
-import { getRenderDir, renderFileName } from '@/lib/render-path';
+import { fetchTranscript } from '@/lib/youtube-transcript';
 
-const execAsync = promisify(exec);
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 /**
  * POST /api/engine/summary
  * 
  * 엔진 2: 원본 숏폼 요약
- * YouTube URL → 자막 스크래핑 → AI 하이라이트 추출 → 숏폼 구성
+ * YouTube URL → Node.js 자막 추출 → AI 하이라이트 추출
  * 
- * Body: { url: string }
+ * Python 의존성 완전 제거. 메모리 내 처리.
  */
 export async function POST(req) {
   try {
@@ -27,32 +22,20 @@ export async function POST(req) {
 
     console.log(`✂️ [SUMMARY] 엔진 가동: ${url}`);
 
-    // ─────────────────────────────────────
-    // STEP 1: YouTube 자막 스크래핑
-    // ─────────────────────────────────────
-    const renderDir = getRenderDir();
-    const scriptPath = path.join(process.cwd(), 'scripts', 'scrape_transcript.py');
-    const outputPath = path.join(renderDir, renderFileName('transcript', '.json'));
-
-    const cmd = `python "${scriptPath}" --url "${url}" --output "${outputPath}" --meta`;
-    
+    // ─── STEP 1: Node.js 자막 추출 (메모리 내) ───
     let transcriptData;
     try {
-      await execAsync(cmd, { timeout: 30000 });
-      transcriptData = JSON.parse(fs.readFileSync(outputPath, 'utf-8'));
+      transcriptData = await fetchTranscript(url);
     } catch (scrapeErr) {
-      console.error('⚠️ 자막 스크래핑 실패:', scrapeErr.message);
       return NextResponse.json({
         success: false,
-        error: `자막 추출 실패: ${scrapeErr.message}. 자막이 있는 영상인지 확인해주세요.`,
+        error: `자막 추출 실패: ${scrapeErr.message}`,
       }, { status: 400 });
     }
 
     console.log(`📊 자막 추출 완료: ${transcriptData.segment_count}개 세그먼트, ${transcriptData.duration_sec}초`);
 
-    // ─────────────────────────────────────
-    // STEP 2: AI 하이라이트 분석
-    // ─────────────────────────────────────
+    // ─── STEP 2: AI 하이라이트 분석 ───
     const truncatedText = transcriptData.full_text.substring(0, 6000);
 
     const systemPrompt = `당신은 바이럴 숏폼 편집 전문가입니다.
@@ -73,10 +56,8 @@ export async function POST(req) {
 - 키워드는 자막에서 강조할 단어를 추출하라.`;
 
     const userPrompt = `영상 정보:
-- 제목: ${transcriptData.metadata?.title || '알 수 없음'}
-- 채널: ${transcriptData.metadata?.channel || '알 수 없음'}
 - 길이: ${Math.round(transcriptData.duration_sec / 60)}분
-- 조회수: ${transcriptData.metadata?.view_count?.toLocaleString() || '알 수 없음'}
+- 세그먼트: ${transcriptData.segment_count}개
 
 자막 데이터:
 ${truncatedText}
@@ -125,10 +106,7 @@ JSON 형식:
         ...result,
         source: {
           videoId: transcriptData.video_id,
-          title: transcriptData.metadata?.title,
-          channel: transcriptData.metadata?.channel,
           duration: transcriptData.duration_sec,
-          thumbnail: transcriptData.metadata?.thumbnail,
         }
       }
     });
