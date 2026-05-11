@@ -40,9 +40,18 @@ export default function EmpireConsole() {
   const [copyGenerating, setCopyGenerating] = useState(false); // 카피 생성 중
   const [visualGenerating, setVisualGenerating] = useState(false); // 비주얼 생성 중
 
-  // ★ 실시간 진행 상황 시스템
-  const [progress, setProgress] = useState({ active: false, percent: 0, status: '', stage: '' });
-  const [renderVideo, setRenderVideo] = useState(null); // 완성 영상 URL
+  // ★ 각 액션별 인라인 진행 + 결과 상태
+  const [actionStates, setActionStates] = useState({
+    summary: { loading: false, percent: 0, status: '' },
+    subtitle: { loading: false, percent: 0, status: '', result: null },
+    facetrack: { loading: false, percent: 0, status: '', result: null },
+    banner: { loading: false, percent: 0, status: '', result: null },
+  });
+  const [renderVideo, setRenderVideo] = useState(null);
+  const [subtitleText, setSubtitleText] = useState(''); // 편집 가능한 자막
+
+  // 액션 상태 업데이트 헬퍼
+  const updateAction = (key, updates) => setActionStates(prev => ({ ...prev, [key]: { ...prev[key], ...updates } }));
 
   // 쉐도우 룸 에셋 선택
   const [selectedAssets, setSelectedAssets] = useState([]);
@@ -103,28 +112,25 @@ export default function EmpireConsole() {
     }
   };
 
-  // 엔진 2: 원본 숏폼 요약 — 실시간 진행 표시
+  // 엔진 2: 원본 숏폼 요약 — 인라인 진행 표시
   const handleSummaryEngine = async () => {
     if (!masterInput || summaryProcessing) return;
     setSummaryProcessing(true);
     setSummaryResult(null);
+    updateAction('summary', { loading: true, percent: 5, status: '🔍 YouTube URL 파싱 중...' });
 
-    // ── 실시간 진행 시작 ──
-    setProgress({ active: true, percent: 5, status: '🔍 YouTube URL 파싱 중...', stage: 'parse' });
-
-    // 시뮬레이션 타이머: 서버 응답 전까지 진행률 올림
     const stages = [
-      { at: 800, p: 15, s: '📡 서버 연결 완료', st: 'connect' },
-      { at: 2000, p: 25, s: '📄 자막 트랙 스캔 중...', st: 'scan' },
-      { at: 4000, p: 35, s: '🔵 Level 1: 라이브러리 스크래핑...', st: 'level1' },
-      { at: 7000, p: 45, s: '🟣 Level 2: 웹페이지 파싱...', st: 'level2' },
-      { at: 12000, p: 55, s: '🧠 Level 3: Gemini AI 분석 중...', st: 'level3' },
-      { at: 18000, p: 65, s: '🧠 AI가 영상 오디오를 듣고 있어요...', st: 'ai_listen' },
-      { at: 25000, p: 72, s: '✍️ 하이라이트 구간 추출 중...', st: 'highlight' },
-      { at: 35000, p: 80, s: '📊 바이럴 점수 계산 중...', st: 'score' },
+      { at: 800, p: 15, s: '📡 서버 연결 완료' },
+      { at: 2000, p: 25, s: '📄 자막 트랙 스캔 중...' },
+      { at: 4000, p: 35, s: '🔵 Level 1: 라이브러리 스크래핑...' },
+      { at: 7000, p: 45, s: '🟣 Level 2: 웹페이지 파싱...' },
+      { at: 12000, p: 55, s: '🧠 Level 3: Gemini AI 분석 중...' },
+      { at: 18000, p: 65, s: '🧠 AI가 영상 오디오를 듣고 있어요...' },
+      { at: 25000, p: 72, s: '✍️ 하이라이트 구간 추출 중...' },
+      { at: 35000, p: 80, s: '📊 바이럴 점수 계산 중...' },
     ];
     const timers = stages.map(s => setTimeout(() => {
-      setProgress(prev => prev.active ? { active: true, percent: s.p, status: s.s, stage: s.st } : prev);
+      updateAction('summary', { percent: s.p, status: s.s });
     }, s.at));
 
     try {
@@ -133,34 +139,26 @@ export default function EmpireConsole() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: masterInput }),
       });
-
-      // 응답 도착 → 진행률 급등
       timers.forEach(t => clearTimeout(t));
-      setProgress({ active: true, percent: 90, status: '📦 데이터 수신 완료...', stage: 'receive' });
+      updateAction('summary', { percent: 90, status: '📦 데이터 수신 완료...' });
 
       const data = await res.json();
       if (data.success) {
-        setProgress({ active: true, percent: 95, status: '🔗 카피/비주얼 자동 생성 중...', stage: 'bind' });
+        updateAction('summary', { percent: 95, status: '🔗 카피/비주얼 자동 생성 중...' });
         setSummaryResult(data.data);
-
         if (data.data.highlights?.length > 0) {
           autoGenerateFromHighlights(data.data);
         }
-
-        // 100% 완료
         await new Promise(r => setTimeout(r, 600));
         const src = data.data.source?.transcriptSource;
         const srcLabel = src === 'gemini' ? '🟣 Gemini AI' : src === 'scrape' ? '🔵 스크래핑' : '🟢 라이브러리';
-        setProgress({ active: true, percent: 100, status: `✅ 완료! 하이라이트 ${data.data.highlights?.length || 0}개 (${srcLabel})`, stage: 'done' });
-        setTimeout(() => setProgress({ active: false, percent: 0, status: '', stage: '' }), 4000);
+        updateAction('summary', { loading: false, percent: 100, status: `✅ 완료! 하이라이트 ${data.data.highlights?.length || 0}개 (${srcLabel})` });
       } else {
-        setProgress({ active: true, percent: 100, status: `❌ ${data.error}`, stage: 'error' });
-        setTimeout(() => setProgress({ active: false, percent: 0, status: '', stage: '' }), 3000);
+        updateAction('summary', { loading: false, percent: 100, status: `❌ ${data.error}` });
       }
     } catch (err) {
       timers.forEach(t => clearTimeout(t));
-      setProgress({ active: true, percent: 100, status: `❌ 에러: ${err.message}`, stage: 'error' });
-      setTimeout(() => setProgress({ active: false, percent: 0, status: '', stage: '' }), 3000);
+      updateAction('summary', { loading: false, percent: 100, status: `❌ 에러: ${err.message}` });
     }
     setSummaryProcessing(false);
   };
@@ -330,11 +328,11 @@ export default function EmpireConsole() {
     }
     setIsProcessing(true);
     setEngineResult(null);
-    setProgress({ active: true, percent: 5, status: '🚀 제국 엔진 점화 중...', stage: 'ignite' });
+    setToastMsg('🚀 제국 엔진 점화 중...');
 
     try {
       // 카피 생성
-      setProgress({ active: true, percent: 20, status: '✍️ AI 카피라이팅 엔진 가동...', stage: 'copy' });
+      setToastMsg('✍️ AI 카피라이팅 엔진 가동...');
       setCopyGenerating(true);
       const copyRes = await fetch('/api/ad-copy', {
         method: 'POST',
@@ -352,7 +350,7 @@ export default function EmpireConsole() {
       setCopyGenerating(false);
 
       // 렌더링 엔진
-      setProgress({ active: true, percent: 50, status: '🎬 시네마틱 렌더 엔진 가동...', stage: 'render' });
+      setToastMsg('🎬 시네마틱 렌더 엔진 가동...');
       const renderRes = await fetch('/api/render-engine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -376,7 +374,7 @@ export default function EmpireConsole() {
       }
 
       // MJ 프롬프트 4종 자동 생성
-      setProgress({ active: true, percent: 80, status: '🎨 비주얼 프롬프트 4종 생성...', stage: 'visual' });
+      setToastMsg('🎨 비주얼 프롬프트 4종 생성...');
       setVisualGenerating(true);
       const kw = masterInput;
       const usps = copyResult.success && copyResult.data?.[0] ? [copyResult.data[0].headline, copyResult.data[0].body?.substring(0, 50)] : [kw];
@@ -396,16 +394,15 @@ export default function EmpireConsole() {
       });
       setVisualGenerating(false);
 
-      // 완료
-      setProgress({ active: true, percent: 100, status: '✅ 제국 엔진 가동 완료! 모든 섹션 READY', stage: 'done' });
-      setTimeout(() => setProgress({ active: false, percent: 0, status: '', stage: '' }), 4000);
+      setToastMsg('✅ 제국 엔진 가동 완료!');
+      setTimeout(() => setToastMsg(null), 3000);
       setIsProcessing(false);
     } catch (error) {
       setIsProcessing(false);
       setCopyGenerating(false);
       setVisualGenerating(false);
-      setProgress({ active: true, percent: 100, status: `❌ 엔진 오류: ${error.message}`, stage: 'error' });
-      setTimeout(() => setProgress({ active: false, percent: 0, status: '', stage: '' }), 3000);
+      setToastMsg(`❌ 엔진 오류: ${error.message}`);
+      setTimeout(() => setToastMsg(null), 3000);
     }
   };
 
@@ -468,36 +465,6 @@ export default function EmpireConsole() {
             </button>
           ))}
         </div>
-
-        {/* ★ 실시간 진행 상황 바 */}
-        {progress.active && (
-          <div className="mt-4 bg-black/60 border border-gray-700 rounded-xl p-4 backdrop-blur-sm">
-            <div className="flex items-center justify-between mb-2">
-              <span className={`text-xs font-bold ${progress.stage === 'done' ? 'text-[#39FF14]' : progress.stage === 'error' ? 'text-red-400' : 'text-cyan-300'}`}>
-                {progress.status}
-              </span>
-              <span className={`text-sm font-mono font-bold ${progress.stage === 'done' ? 'text-[#39FF14]' : progress.stage === 'error' ? 'text-red-400' : 'text-white'}`}>
-                {progress.percent}%
-              </span>
-            </div>
-            <div className="w-full bg-gray-800 h-2.5 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ease-out ${
-                  progress.stage === 'done' ? 'bg-[#39FF14] shadow-[0_0_12px_rgba(57,255,20,0.6)]'
-                  : progress.stage === 'error' ? 'bg-red-500'
-                  : 'bg-gradient-to-r from-cyan-500 to-blue-500 shadow-[0_0_8px_rgba(6,182,212,0.4)]'
-                }`}
-                style={{ width: `${progress.percent}%` }}
-              ></div>
-            </div>
-            {progress.stage !== 'done' && progress.stage !== 'error' && (
-              <div className="mt-2 flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></div>
-                <span className="text-[9px] text-gray-500">서버가 작업 중입니다 · 이 작업은 최대 60초가 소요됩니다</span>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* 엔진 A: 롱폼 재창조 (현재 가동 중) */}
         {activeEngine === 'recreate' && (
@@ -574,10 +541,7 @@ export default function EmpireConsole() {
               <div className="mt-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-cyan-400 text-xs font-bold">📊 하이라이트 추출 결과</h4>
-                  <button
-                    onClick={() => { navigator.clipboard.writeText(JSON.stringify(summaryResult, null, 2)); setToastMsg('✅ 하이라이트 JSON 복사 완료'); setTimeout(() => setToastMsg(null), 2000); }}
-                    className="text-[9px] text-cyan-500 hover:text-cyan-400"
-                  >📋 JSON 복사</button>
+                  <span className="text-[9px] text-gray-600">{summaryResult.highlights?.length || 0}개 추출됨</span>
                 </div>
                 {summaryResult.source?.title && (
                   <div className="bg-black/40 p-3 rounded-lg border border-gray-800 text-[10px]">
@@ -593,20 +557,28 @@ export default function EmpireConsole() {
                   <div
                     key={i}
                     onClick={() => handleHighlightSelect(h, i)}
-                    className={`bg-black/30 p-3 rounded-lg border text-[10px] cursor-pointer transition-all hover:bg-cyan-900/10 ${
+                    className={`relative bg-black/30 p-3 rounded-lg border text-[10px] cursor-pointer transition-all hover:bg-cyan-900/10 ${
                       selectedHighlight === h ? 'border-cyan-500 ring-1 ring-cyan-500/30 bg-cyan-900/20' : 'border-cyan-900/30'
                     }`}
                   >
+                    {/* ★ Viral Score 대형 배지 */}
+                    {h.viral_score && (
+                      <div className={`absolute -top-2 -right-2 w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-black border-2 ${
+                        h.viral_score >= 8 ? 'bg-red-600 border-red-400 text-white shadow-[0_0_12px_rgba(239,68,68,0.5)]'
+                        : h.viral_score >= 6 ? 'bg-amber-600 border-amber-400 text-white shadow-[0_0_12px_rgba(245,158,11,0.4)]'
+                        : 'bg-gray-700 border-gray-500 text-gray-300'
+                      }`}>
+                        {h.viral_score}
+                      </div>
+                    )}
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-cyan-400 font-bold">#{h.rank || i + 1} {h.emotion && `${h.emotion === '놀라움' ? '😮' : h.emotion === '감동' ? '🥹' : h.emotion === '유머' ? '😂' : h.emotion === '긴장' ? '😰' : '🔥'}`} {selectedHighlight === h && <span className="text-[8px] text-cyan-300 ml-1">✓ 선택됨</span>}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-500">{Math.floor(h.start_sec / 60)}:{String(h.start_sec % 60).padStart(2, '0')} → {Math.floor(h.end_sec / 60)}:{String(h.end_sec % 60).padStart(2, '0')}</span>
-                        {h.viral_score && <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${h.viral_score >= 8 ? 'bg-red-900/50 text-red-300' : h.viral_score >= 6 ? 'bg-amber-900/50 text-amber-300' : 'bg-gray-800 text-gray-400'}`}>🔥 {h.viral_score}/10</span>}
-                      </div>
+                      <span className="text-gray-500 mr-12">{Math.floor(h.start_sec / 60)}:{String(h.start_sec % 60).padStart(2, '0')} → {Math.floor(h.end_sec / 60)}:{String(h.end_sec % 60).padStart(2, '0')}</span>
                     </div>
                     <p className="text-white">{h.caption}</p>
                     <p className="text-gray-500 mt-1">{h.reason}</p>
                     {h.keywords && <div className="mt-1 flex gap-1 flex-wrap">{h.keywords.map((kw, ki) => <span key={ki} className="px-1.5 py-0.5 bg-cyan-900/30 text-cyan-300 rounded text-[8px]">{kw}</span>)}</div>}
+                    {h.viral_score && <div className="mt-1.5 flex items-center gap-1"><span className="text-[8px] text-gray-600">Viral Potential:</span><div className="flex-1 bg-gray-800 h-1 rounded-full overflow-hidden"><div className={`h-full rounded-full ${h.viral_score>=8?'bg-red-500':h.viral_score>=6?'bg-amber-500':'bg-gray-600'}`} style={{width:`${h.viral_score*10}%`}}></div></div><span className="text-[8px] font-bold text-gray-400">{h.viral_score}/10</span></div>}
                   </div>
                 ))}
               </div>
@@ -762,140 +734,100 @@ export default function EmpireConsole() {
               </button>
             ))}
 
-            {/* ──── ✂️ 원본 숏폼 요약 탭 ──── */}
-            {activeEngine === 'summary' && [
-              { id: 'btn_highlight', icon: '📊', label: '하이라이트 추출', highlight: true, action: 'summary' },
-              { id: 'btn_autosub', icon: '💬', label: '자막 자동 생성', action: 'subtitle' },
-              { id: 'btn_facetrack', icon: '👤', label: '페이스 트래킹 크롭', action: 'facetrack' },
-              { id: 'btn_snsbanner', icon: '📱', label: 'SNS 배너', action: 'snsbanner' },
-            ].map((btn) => (
-              <button
-                key={btn.id}
-                disabled={progress.active}
-                onClick={async () => {
-                  if (btn.action === 'summary' && !summaryProcessing) {
-                    handleSummaryEngine();
-                    return;
-                  }
-
-                  if (btn.action === 'subtitle') {
-                    // ── 자막 자동 생성: /api/scrape 호출 ──
-                    if (!masterInput) { setToastMsg('❌ URL을 먼저 입력하세요'); setTimeout(() => setToastMsg(null), 2000); return; }
-                    setProgress({ active: true, percent: 10, status: '💬 자막 엔진 가동 중...', stage: 'subtitle' });
-                    try {
-                      const stageTimers = [
-                        setTimeout(() => setProgress(p => p.active ? { ...p, percent: 30, status: '📄 YouTube 자막 트랙 스캔...' } : p), 2000),
-                        setTimeout(() => setProgress(p => p.active ? { ...p, percent: 50, status: '🧠 AI 자막 생성 중...' } : p), 5000),
-                        setTimeout(() => setProgress(p => p.active ? { ...p, percent: 70, status: '✍️ 타임코드 매핑 중...' } : p), 10000),
-                      ];
-                      const res = await fetch('/api/scrape', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: masterInput }),
-                      });
-                      stageTimers.forEach(t => clearTimeout(t));
-                      const data = await res.json();
-                      if (data.success) {
-                        setProgress({ active: true, percent: 100, status: `✅ 자막 생성 완료! ${data.data?.segment_count || ''}개 세그먼트`, stage: 'done' });
-                        // 자막 데이터를 카피 섹션에 바인딩
-                        setCopyData([{
-                          headline: '💬 자동 생성 자막 (SRT)',
-                          body: data.data?.segments?.slice(0, 8).map(s => `[${s.start}s] ${s.text}`).join('\n') || data.data?.srt_preview || '자막 데이터',
-                          cta: `총 ${data.data?.segment_count || 0}개 세그먼트 · ${data.data?.duration_sec || 0}초`,
-                        }]);
-                      } else {
-                        setProgress({ active: true, percent: 100, status: `❌ ${data.error}`, stage: 'error' });
-                      }
-                    } catch (e) {
-                      setProgress({ active: true, percent: 100, status: `❌ ${e.message}`, stage: 'error' });
-                    }
-                    setTimeout(() => setProgress({ active: false, percent: 0, status: '', stage: '' }), 3000);
-                    return;
-                  }
-
-                  if (btn.action === 'facetrack') {
-                    // ── 페이스 트래킹: /api/process-video 호출 ──
-                    if (!masterInput) { setToastMsg('❌ URL을 먼저 입력하세요'); setTimeout(() => setToastMsg(null), 2000); return; }
-                    setProgress({ active: true, percent: 10, status: '👤 Face-Tracking 엔진 가동...', stage: 'facetrack' });
-                    try {
-                      const stageTimers = [
-                        setTimeout(() => setProgress(p => p.active ? { ...p, percent: 30, status: '🎯 인물 좌표 추적 중...' } : p), 2000),
-                        setTimeout(() => setProgress(p => p.active ? { ...p, percent: 55, status: '📐 9:16 크롭 영역 계산...' } : p), 5000),
-                        setTimeout(() => setProgress(p => p.active ? { ...p, percent: 75, status: '🎬 세로형 리프레이밍...' } : p), 8000),
-                      ];
-                      const res = await fetch('/api/process-video', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          url: masterInput,
-                          mode: 'facetrack',
-                          highlights: summaryResult?.highlights || [],
-                        }),
-                      });
-                      stageTimers.forEach(t => clearTimeout(t));
-                      const data = await res.json();
-                      if (data.success) {
-                        setProgress({ active: true, percent: 100, status: '✅ Face-Track 분석 완료!', stage: 'done' });
-                        setCopyData([{
-                          headline: '👤 Face-Tracking 크롭 가이드',
-                          body: data.data?.guide || data.data?.crops?.map((c, i) => `Scene ${i+1}: x=${c.x} y=${c.y} → 9:16`).join('\n') || 'Face-Track 완료',
-                          cta: '크롭 좌표가 위에 표시되었어요 → 영상 편집 소프트웨어에 적용하세요',
-                        }]);
-                        if (data.data?.videoUrl) setRenderVideo(data.data.videoUrl);
-                      } else {
-                        setProgress({ active: true, percent: 100, status: `❌ ${data.error}`, stage: 'error' });
-                      }
-                    } catch (e) {
-                      setProgress({ active: true, percent: 100, status: `❌ ${e.message}`, stage: 'error' });
-                    }
-                    setTimeout(() => setProgress({ active: false, percent: 0, status: '', stage: '' }), 3000);
-                    return;
-                  }
-
-                  if (btn.action === 'snsbanner') {
-                    // ── SNS 배너: /api/generate-image 호출 ──
-                    setProgress({ active: true, percent: 10, status: '📱 SNS 배너 AI 생성 중...', stage: 'banner' });
-                    try {
-                      const stageTimers = [
-                        setTimeout(() => setProgress(p => p.active ? { ...p, percent: 40, status: '🎨 배너 레이아웃 설계...' } : p), 2000),
-                        setTimeout(() => setProgress(p => p.active ? { ...p, percent: 70, status: '🖼️ 이미지 렌더링...' } : p), 5000),
-                      ];
-                      const bannerPrompt = `An eye-catching Instagram Reels cover thumbnail for "${summaryResult?.source?.title || masterInput}", bold Korean text overlay, viral style, vibrant colors, vertical format, attention-grabbing --ar 9:16 --v 6.0`;
-                      const res = await fetch('/api/generate-image', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ prompt: bannerPrompt, style: 'sns_banner' }),
-                      });
-                      stageTimers.forEach(t => clearTimeout(t));
-                      const data = await res.json();
-                      if (data.success) {
-                        setProgress({ active: true, percent: 100, status: '✅ SNS 배너 생성 완료!', stage: 'done' });
-                        setMjPrompts(prev => ({ ...prev, sns: bannerPrompt }));
-                        if (data.data?.imageUrl) {
-                          setUploadedImages(prev => [...prev, { name: 'SNS배너.png', url: data.data.imageUrl }]);
-                        }
-                      } else {
-                        setProgress({ active: true, percent: 100, status: `❌ ${data.error}`, stage: 'error' });
-                      }
-                    } catch (e) {
-                      setProgress({ active: true, percent: 100, status: `❌ ${e.message}`, stage: 'error' });
-                    }
-                    setTimeout(() => setProgress({ active: false, percent: 0, status: '', stage: '' }), 3000);
-                    return;
-                  }
-                }}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-bold transition-all border ${
-                  progress.active && btn.action !== 'summary' 
-                    ? 'opacity-50 cursor-not-allowed border-gray-800 text-gray-500'
-                    : btn.highlight
-                    ? 'bg-cyan-900/30 border-cyan-600/50 text-cyan-300 hover:bg-cyan-800/40 hover:border-cyan-500 shadow-sm shadow-cyan-900/20'
-                    : 'bg-black/40 border-gray-800 text-gray-300 hover:bg-cyan-900/20 hover:border-cyan-700/50 hover:text-cyan-300'
-                }`}
-              >
-                <span>{btn.icon}</span>
-                <span>{btn.label}</span>
-              </button>
-            ))}
+            {/* ──── ✂️ 원본 숏폼 요약 탭 — 인라인 결과 컨테이너 ──── */}
+            {activeEngine === 'summary' && (<div className="flex flex-col gap-3 w-full mt-2">
+                <div className="flex gap-2 flex-wrap">
+                  {[
+                    { id: 'sh', icon: '📊', label: '하이라이트 추출', hl: true, act: 'summary' },
+                    { id: 'ss', icon: '💬', label: '자막 자동 생성', act: 'subtitle' },
+                    { id: 'sf', icon: '👤', label: '페이스 트래킹', act: 'facetrack' },
+                    { id: 'sb', icon: '📱', label: 'SNS 배너', act: 'snsbanner' },
+                  ].map((btn) => {
+                    const key = btn.act === 'snsbanner' ? 'banner' : btn.act;
+                    const st = actionStates[key];
+                    return (
+                    <button key={btn.id} disabled={st?.loading}
+                      onClick={async () => {
+                        if (btn.act === 'summary') { handleSummaryEngine(); return; }
+                        if (!masterInput) { setToastMsg('❌ URL을 먼저 입력하세요'); setTimeout(() => setToastMsg(null), 2000); return; }
+                        updateAction(key, { loading: true, percent: 10, status: `${btn.icon} 서버 처리 중...`, result: null });
+                        const eps = { subtitle: { url: '/api/scrape', body: { url: masterInput }, ss: [{at:2e3,p:30,s:'📄 자막 스캔...'},{at:5e3,p:50,s:'🧠 AI 생성...'},{at:1e4,p:70,s:'✍️ 매핑...'}] },
+                          facetrack: { url: '/api/process-video', body: { url: masterInput, mode: 'facetrack', highlights: summaryResult?.highlights||[] }, ss: [{at:2e3,p:30,s:'🎯 인물 추적...'},{at:5e3,p:55,s:'📐 크롭 계산...'},{at:8e3,p:75,s:'🎬 리프레이밍...'}] },
+                          banner: { url: '/api/generate-image', body: { prompt: `Instagram Reels cover "${summaryResult?.source?.title||masterInput}", Korean text, viral --ar 9:16 --v 6.0`, style: 'sns_banner' }, ss: [{at:2e3,p:40,s:'🎨 설계...'},{at:5e3,p:70,s:'🖼️ 렌더링...'}] } };
+                        const ep = eps[key]; const ts = ep.ss.map(s => setTimeout(() => updateAction(key, { percent: s.p, status: s.s }), s.at));
+                        try { const r = await fetch(ep.url, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(ep.body) }); ts.forEach(t=>clearTimeout(t)); updateAction(key, { percent: 90, status: '📦 수신...' });
+                          const d = await r.json(); if (d.success) { updateAction(key, { loading: false, percent: 100, status: '✅ 완료!', result: d.data });
+                            if (key==='subtitle' && d.data?.segments) setSubtitleText(d.data.segments.map(s=>`[${s.start}s→${s.end||''}s] ${s.text}`).join('\n'));
+                            if (key==='facetrack' && d.data?.videoUrl) setRenderVideo(d.data.videoUrl);
+                          } else { updateAction(key, { loading: false, percent: 100, status: `❌ ${d.error}` }); }
+                        } catch(e) { ts.forEach(t=>clearTimeout(t)); updateAction(key, { loading: false, percent: 100, status: `❌ ${e.message}` }); }
+                      }}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-bold transition-all border ${st?.loading ? 'opacity-60 cursor-wait border-cyan-700/50 text-cyan-400 animate-pulse' : btn.hl ? 'bg-cyan-900/30 border-cyan-600/50 text-cyan-300 hover:bg-cyan-800/40 hover:border-cyan-500' : 'bg-black/40 border-gray-800 text-gray-300 hover:bg-cyan-900/20 hover:border-cyan-700/50 hover:text-cyan-300'}`}
+                    ><span>{btn.icon}</span><span>{btn.label}</span></button>);
+                  })}
+                </div>
+                {/* 하이라이트 인라인 진행 */}
+                {(actionStates.summary.loading || actionStates.summary.percent > 0) && (
+                  <div className="bg-black/40 border border-cyan-900/30 rounded-lg p-3">
+                    <div className="flex items-center justify-between text-[10px] mb-1">
+                      <span className={actionStates.summary.percent>=100?'text-[#39FF14]':'text-cyan-300'}>{actionStates.summary.status}</span>
+                      <span className="text-white font-mono font-bold">{actionStates.summary.percent}%</span>
+                    </div>
+                    <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all duration-500 ${actionStates.summary.percent>=100?'bg-[#39FF14]':'bg-gradient-to-r from-cyan-500 to-blue-500'}`} style={{width:`${actionStates.summary.percent}%`}}></div>
+                    </div>
+                  </div>
+                )}
+                {/* 자막 결과 — 편집 가능 textarea */}
+                {(actionStates.subtitle.loading || actionStates.subtitle.result) && (
+                  <div className="bg-black/40 border border-cyan-900/30 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-cyan-400 text-[10px] font-bold">💬 자막 자동 생성</span>
+                      {actionStates.subtitle.loading && <span className="text-cyan-300 text-[10px] font-mono animate-pulse">{actionStates.subtitle.percent}%</span>}
+                    </div>
+                    {actionStates.subtitle.loading && <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden mb-2"><div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-500" style={{width:`${actionStates.subtitle.percent}%`}}></div></div>}
+                    {actionStates.subtitle.loading && <p className="text-gray-500 text-[9px] flex items-center gap-1"><span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-ping"></span>{actionStates.subtitle.status}</p>}
+                    {subtitleText && <textarea value={subtitleText} onChange={(e)=>setSubtitleText(e.target.value)} className="w-full bg-black/60 border border-gray-700 rounded-lg p-3 text-[11px] text-gray-200 font-mono leading-relaxed resize-y focus:border-[#39FF14] focus:ring-1 focus:ring-[#39FF14]/20 outline-none mt-2" rows={8} placeholder="자막 편집..."/>}
+                    {subtitleText && <span className="text-[8px] text-gray-600 mt-1 block">✏️ 위 텍스트를 직접 편집할 수 있습니다</span>}
+                  </div>
+                )}
+                {/* Face-Track 결과 + 비디오 플레이어 */}
+                {(actionStates.facetrack.loading || actionStates.facetrack.result) && (
+                  <div className="bg-black/40 border border-purple-900/30 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-purple-400 text-[10px] font-bold">👤 Face-Tracking</span>
+                      {actionStates.facetrack.loading && <span className="text-purple-300 text-[10px] font-mono animate-pulse">{actionStates.facetrack.percent}%</span>}
+                    </div>
+                    {actionStates.facetrack.loading && <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden mb-2"><div className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500" style={{width:`${actionStates.facetrack.percent}%`}}></div></div>}
+                    {actionStates.facetrack.loading && <p className="text-gray-500 text-[9px] flex items-center gap-1"><span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-ping"></span>{actionStates.facetrack.status}</p>}
+                    {actionStates.facetrack.result && (<div className="space-y-2 mt-2">
+                      <p className="text-white text-[11px]">{actionStates.facetrack.result.guide}</p>
+                      {actionStates.facetrack.result.crops?.map((c,i) => <div key={i} className="bg-black/30 p-2 rounded border border-gray-800 text-[10px] flex items-center gap-3"><span className="text-purple-400 font-bold">Scene {c.scene||i+1}</span><span className="text-gray-400">{c.time}</span><span className="text-white">{c.subject}—{c.action}</span><span className="text-gray-500 ml-auto font-mono">{c.x},{c.y} {c.width}×{c.height}</span></div>)}
+                      {actionStates.facetrack.result.tips?.map((t,i) => <p key={i} className="text-gray-500 text-[9px]">💡 {t}</p>)}
+                    </div>)}
+                    {renderVideo && <video src={renderVideo} controls autoPlay className="w-full rounded-lg border-2 border-[#39FF14]/50 mt-3 shadow-[0_0_15px_rgba(57,255,20,0.15)]"/>}
+                  </div>
+                )}
+                {/* SNS 배너 이미지 프리뷰 */}
+                {(actionStates.banner.loading || actionStates.banner.result) && (
+                  <div className="bg-black/40 border border-emerald-900/30 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-emerald-400 text-[10px] font-bold">📱 SNS 배너</span>
+                      {actionStates.banner.loading && <span className="text-emerald-300 text-[10px] font-mono animate-pulse">{actionStates.banner.percent}%</span>}
+                    </div>
+                    {actionStates.banner.loading && <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden mb-2"><div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all duration-500" style={{width:`${actionStates.banner.percent}%`}}></div></div>}
+                    {actionStates.banner.loading && <p className="text-gray-500 text-[9px] flex items-center gap-1"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span>{actionStates.banner.status}</p>}
+                    {actionStates.banner.result && (<div className="space-y-2 mt-2">
+                      {actionStates.banner.result.imageUrl ? <img src={actionStates.banner.result.imageUrl} alt="SNS Banner" className="w-full rounded-lg border-2 border-[#39FF14]/50 shadow-[0_0_15px_rgba(57,255,20,0.15)]"/> : (<div className="bg-black/60 p-3 rounded-lg border border-emerald-800/30">
+                        <p className="text-white text-[11px] font-bold mb-1">🎯 정제된 MJ 프롬프트</p>
+                        <p className="text-emerald-300 text-[10px] font-mono leading-relaxed">{actionStates.banner.result.refined_prompt}</p>
+                        {actionStates.banner.result.variations?.map((v,i) => <div key={i} className="mt-2 bg-black/40 p-2 rounded border border-gray-800"><p className="text-cyan-400 text-[9px] font-bold">{v.name}</p><p className="text-gray-300 text-[9px] font-mono mt-0.5">{v.prompt}</p></div>)}
+                        {actionStates.banner.result.description_ko && <p className="text-gray-500 text-[9px] mt-2 italic">{actionStates.banner.result.description_ko}</p>}
+                      </div>)}
+                    </div>)}
+                  </div>
+                )}
+              </div>)}
 
             {/* ──── 🛍️ 커머스 맞춤 광고 탭 ──── */}
             {activeEngine === 'commerce' && [
