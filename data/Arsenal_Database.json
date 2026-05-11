@@ -1,0 +1,657 @@
+{
+  "project": "Banseok-2",
+  "version": "2.0.0",
+  "total_items": 100,
+  "arsenal_database": [
+    {
+      "phase": "Phase 1: Classical Origins (Ancient ~ 1800s)",
+      "items": [
+        {
+          "id": "A-001",
+          "name": "Mural-like Layout",
+          "description": "Bold, symbolic composition inspired by Pompeian ruins.",
+          "prompt_inject": "Compose the visual like an ancient mural: use raw textures, earthy tones, and center-focused symbolic placement."
+        },
+        {
+          "id": "A-002",
+          "name": "Papyrus Scroll Narrative",
+          "description": "Story unfolds left-to-right like an ancient scroll.",
+          "prompt_inject": "Structure the narrative as a horizontal scroll: reveal information sequentially left-to-right with aged parchment textures and hieroglyphic borders."
+        },
+        {
+          "id": "A-003",
+          "name": "Renaissance Perspective Grid",
+          "description": "Single vanishing-point composition for depth and focus.",
+          "prompt_inject": "Apply single-point Renaissance perspective: draw the viewer's eye to the product at the vanishing point using converging architectural lines."
+        },
+        {
+          "id": "A-004",
+          "name": "Chiaroscuro Contrast",
+          "description": "Dramatic light-dark interplay à la Caravaggio.",
+          "prompt_inject": "Use Caravaggio-style chiaroscuro: bathe the product in a single dramatic light source against deep shadows to create emotional intensity."
+        },
+        {
+          "id": "A-005",
+          "name": "Heraldic Emblem Design",
+          "description": "Symmetrical crest-style branding for authority.",
+          "prompt_inject": "Design the brand identity as a heraldic crest: use bilateral symmetry, shield motifs, and ribbon banners to convey legacy and authority."
+        },
+        {
+          "id": "A-006",
+          "name": "Gutenberg Print Block",
+          "description": "Typography-first design echoing early movable type.",
+          "prompt_inject": "Emulate Gutenberg press aesthetics: use bold serif typography as the hero element, ink-press textures, and justified text blocks with ornamental drop caps."
+        },
+        {
+          "id": "A-007",
+          "name": "Claude Hopkins' Reason-Why",
+          "description": "Logical, fact-based persuasion strategy.",
+          "prompt_inject": "Apply 'Reason-Why' copywriting: List exactly 3 undeniable logical benefits of this product in a structured, numbered format."
+        },
+        {
+          "id": "A-008",
+          "name": "Baroque Excess",
+          "description": "Ornate, overwhelming detail for luxury products.",
+          "prompt_inject": "Channel Baroque opulence: fill every corner with gilded ornaments, swirling details, and rich fabrics to convey maximum luxury."
+        },
+        {
+          "id": "A-009",
+          "name": "Woodblock Ukiyo-e Flow",
+          "description": "Japanese wave-like visual flow and flat color planes.",
+          "prompt_inject": "Apply Ukiyo-e composition: use flowing wave-like lines, flat bold color planes, and asymmetric balance inspired by Hokusai."
+        },
+        {
+          "id": "A-010",
+          "name": "Classical Mythology Frame",
+          "description": "Product elevated through mythological narrative.",
+          "prompt_inject": "Frame the product within a mythological narrative: position it as an artifact of the gods using classical Greek/Roman visual metaphors and heroic poses."
+        }
+      ]
+    },
+    {
+      "phase": "Phase 2: The Golden Age of Advertising (1900s-1960s)",
+      "items": [
+        {
+          "id": "A-011",
+          "name": "Art Nouveau Organic Flow",
+          "description": "Sinuous, nature-inspired decorative borders.",
+          "prompt_inject": "Apply Art Nouveau styling: use sinuous organic lines, floral motifs, and Mucha-inspired decorative borders framing the product."
+        },
+        {
+          "id": "A-012",
+          "name": "Rosser Reeves' USP Hammer",
+          "description": "One single Unique Selling Proposition repeated relentlessly.",
+          "prompt_inject": "Identify the ONE unique selling proposition and hammer it: repeat the single core benefit in headline, subhead, and visual so it becomes unforgettable."
+        },
+        {
+          "id": "A-013",
+          "name": "Norman Rockwell Storytelling",
+          "description": "Warm, relatable slice-of-life illustration.",
+          "prompt_inject": "Create a Norman Rockwell moment: depict a warm, relatable everyday scene where the product naturally belongs, using hyper-detailed illustration and warm lighting."
+        },
+        {
+          "id": "A-014",
+          "name": "Swiss Grid System",
+          "description": "Mathematically precise layout with Helvetica dominance.",
+          "prompt_inject": "Apply strict Swiss International Style: use a 12-column grid, Helvetica typography, generous white space, and asymmetric balance for maximum clarity."
+        },
+        {
+          "id": "A-015",
+          "name": "David Ogilvy's Long Copy",
+          "description": "Detailed, research-backed persuasive body text.",
+          "prompt_inject": "Write in Ogilvy's long-copy tradition: open with a magnetic headline, follow with detailed benefit-driven paragraphs backed by specific facts and testimonials."
+        },
+        {
+          "id": "A-016",
+          "name": "Propaganda Poster Impact",
+          "description": "Bold colors, strong typography, call-to-action urgency.",
+          "prompt_inject": "Design with propaganda poster intensity: use bold primary colors, oversized sans-serif headlines, pointed finger motifs, and urgent imperative verbs."
+        },
+        {
+          "id": "A-017",
+          "name": "Pin-Up Illustration Style",
+          "description": "Retro glamour illustration with nostalgic charm.",
+          "prompt_inject": "Apply 1950s pin-up illustration aesthetics: use saturated colors, idealized figures, playful poses, and vintage halftone dot patterns."
+        },
+        {
+          "id": "A-018",
+          "name": "Bill Bernbach's Creative Revolution",
+          "description": "Wit-driven, anti-establishment clever advertising.",
+          "prompt_inject": "Channel Bernbach's creative revolution: pair a witty, unexpected visual with a clever headline that subverts expectations. Think VW 'Think Small' energy."
+        },
+        {
+          "id": "A-019",
+          "name": "Bauhaus Functional Design",
+          "description": "Form follows function, geometric purity.",
+          "prompt_inject": "Apply Bauhaus principles: use primary colors, geometric shapes (circle, square, triangle), sans-serif type, and absolute functional minimalism."
+        },
+        {
+          "id": "A-020",
+          "name": "Mid-Century Modern Palette",
+          "description": "Atomic-age optimism with teal, orange, and mustard.",
+          "prompt_inject": "Use a mid-century modern palette: teal, burnt orange, mustard yellow, and olive green with atomic-age starburst motifs and boomerang shapes."
+        }
+      ]
+    },
+    {
+      "phase": "Phase 3: The Television & Pop Culture Era (1960s-1990s)",
+      "items": [
+        {
+          "id": "A-021",
+          "name": "Andy Warhol Pop Art",
+          "description": "Mass-produced repetition with bold color shifts.",
+          "prompt_inject": "Apply Warhol's Pop Art method: repeat the product image in a 2x2 or 3x3 grid with dramatic color shifts (cyan, magenta, yellow, green) on each tile."
+        },
+        {
+          "id": "A-022",
+          "name": "Psychedelic Poster Warp",
+          "description": "Swirling colors, distorted typography, acid-trip visuals.",
+          "prompt_inject": "Create a psychedelic poster: use swirling rainbow gradients, melting/warping typography, paisley patterns, and kaleidoscopic symmetry."
+        },
+        {
+          "id": "A-023",
+          "name": "MTV Quick-Cut Rhythm",
+          "description": "Rapid visual cuts synced to a beat.",
+          "prompt_inject": "Edit with MTV energy: design each scene for maximum 2-second retention, use jump cuts, split screens, and visual rhythm synced to an implied beat."
+        },
+        {
+          "id": "A-024",
+          "name": "Saatchi & Saatchi Shock Value",
+          "description": "Provocative imagery that demands attention.",
+          "prompt_inject": "Deploy Saatchi-level shock: create a single arresting image so provocative and unexpected it stops the viewer mid-scroll and demands a second look."
+        },
+        {
+          "id": "A-025",
+          "name": "VHS Retro Glitch",
+          "description": "Analog video degradation for nostalgic authenticity.",
+          "prompt_inject": "Apply VHS degradation: add scan lines, tracking errors, color bleeding, timestamp overlay (REC ●), and chromatic aberration for analog nostalgia."
+        },
+        {
+          "id": "A-026",
+          "name": "Nike 'Just Do It' Manifesto",
+          "description": "Empowerment-driven brand manifesto copywriting.",
+          "prompt_inject": "Write a brand manifesto: use short, punchy, empowering sentences that build to an emotional crescendo. End with a 2-4 word battle cry tagline."
+        },
+        {
+          "id": "A-027",
+          "name": "Supermarket Tabloid Layout",
+          "description": "Sensational headlines, chaotic yet compelling layout.",
+          "prompt_inject": "Design like a tabloid cover: use screaming headlines in multiple sizes, star-burst sale badges, before/after comparisons, and 'exclusive' stamps."
+        },
+        {
+          "id": "A-028",
+          "name": "Grunge Typography",
+          "description": "Distressed, rebellious type design of the 90s.",
+          "prompt_inject": "Apply 90s grunge typography: use distressed, overlapping, partially obscured type with torn paper textures, xerox artifacts, and anti-design composition."
+        },
+        {
+          "id": "A-029",
+          "name": "Infomercial Urgency Engine",
+          "description": "But-wait-there's-more sequential reveal.",
+          "prompt_inject": "Structure as an infomercial: demonstrate the problem dramatically, reveal the product as savior, stack bonuses, add countdown urgency, and a 'Call Now' CTA."
+        },
+        {
+          "id": "A-030",
+          "name": "Keith Haring Line Energy",
+          "description": "Bold outlines, kinetic figures, democratic art.",
+          "prompt_inject": "Use Keith Haring's visual language: bold black outlines, radiant baby motifs, kinetic dancing figures, and flat primary colors on solid backgrounds."
+        }
+      ]
+    },
+    {
+      "phase": "Phase 4: The Digital Revolution (2000s-2015)",
+      "items": [
+        {
+          "id": "A-031",
+          "name": "Apple Minimalism",
+          "description": "Product-on-white, single hero shot, one-line copy.",
+          "prompt_inject": "Apply Apple-level minimalism: pure white background, single product hero shot with precise shadow, one-line benefit statement in thin sans-serif."
+        },
+        {
+          "id": "A-032",
+          "name": "Flat Design 2.0",
+          "description": "Clean vectors with subtle gradients and long shadows.",
+          "prompt_inject": "Use Flat Design 2.0: clean vector illustrations, subtle gradients, long drop shadows, rounded corners, and a vibrant but limited color palette."
+        },
+        {
+          "id": "A-033",
+          "name": "Viral Meme Engineering",
+          "description": "Format designed for social sharing and remix.",
+          "prompt_inject": "Engineer for virality: use a recognizable meme format, Impact font, relatable humor, and leave visual space for user remix and sharing."
+        },
+        {
+          "id": "A-034",
+          "name": "Parallax Depth Storytelling",
+          "description": "Multi-layer scrolling with foreground/background separation.",
+          "prompt_inject": "Design for parallax depth: create distinct foreground, midground, and background layers that move at different speeds to create immersive 3D storytelling."
+        },
+        {
+          "id": "A-035",
+          "name": "Skeuomorphic Realism",
+          "description": "Digital elements mimicking real-world textures.",
+          "prompt_inject": "Apply skeuomorphic design: make digital elements look tactile with leather textures, metal rivets, glass reflections, and realistic material properties."
+        },
+        {
+          "id": "A-036",
+          "name": "Growth Hacking CTA Matrix",
+          "description": "Data-driven conversion-optimized call-to-action design.",
+          "prompt_inject": "Optimize for conversion: use contrasting CTA button colors, directional cues pointing to the action, social proof numbers, and urgency micro-copy."
+        },
+        {
+          "id": "A-037",
+          "name": "Unboxing Experience Design",
+          "description": "Product reveal choreography for maximum anticipation.",
+          "prompt_inject": "Choreograph an unboxing sequence: build anticipation through packaging layers, reveal the product with dramatic lighting, and capture the 'wow' moment."
+        },
+        {
+          "id": "A-038",
+          "name": "Instagram Aesthetic Grid",
+          "description": "Cohesive visual feed design with consistent filters.",
+          "prompt_inject": "Design for Instagram grid cohesion: use consistent color grading, alternating content types, and ensure each frame works alone AND as part of a 3x3 grid."
+        },
+        {
+          "id": "A-039",
+          "name": "Google Material Design",
+          "description": "Elevation, motion, and bold color with purpose.",
+          "prompt_inject": "Apply Material Design principles: use elevation shadows for hierarchy, bold accent colors, meaningful motion, and responsive grid with 8dp baseline grid."
+        },
+        {
+          "id": "A-040",
+          "name": "Storytelling Data Visualization",
+          "description": "Complex data made beautiful and narrative-driven.",
+          "prompt_inject": "Transform product data into visual narrative: use elegant infographics, animated charts, comparative timelines, and data-as-art to tell the product story."
+        }
+      ]
+    },
+    {
+      "phase": "Phase 5: The AI & Creator Economy (2016-2025)",
+      "items": [
+        {
+          "id": "A-041",
+          "name": "TikTok Hook Framework",
+          "description": "First-3-second scroll-stopping hook design.",
+          "prompt_inject": "Design a TikTok hook: the first 3 seconds must contain a visual or textual pattern interrupt. Use text overlay, zoom-in, or impossible visual to stop the scroll."
+        },
+        {
+          "id": "A-042",
+          "name": "ASMR Sensory Trigger",
+          "description": "Close-up tactile/auditory sensory stimulation.",
+          "prompt_inject": "Design for ASMR sensation: extreme macro close-ups of product textures, slow-motion interactions, and imply satisfying sounds through visual cues."
+        },
+        {
+          "id": "A-043",
+          "name": "Dark Mode Premium UI",
+          "description": "OLED-optimized dark interface with accent glows.",
+          "prompt_inject": "Design for dark mode: use true black (#000) backgrounds, subtle gray elevation layers, neon accent glows, and high-contrast typography for premium feel."
+        },
+        {
+          "id": "A-044",
+          "name": "Glassmorphism Layer",
+          "description": "Frosted glass panels with background blur.",
+          "prompt_inject": "Apply glassmorphism: use frosted semi-transparent panels with background blur, subtle borders, and layered depth to create a modern, airy UI aesthetic."
+        },
+        {
+          "id": "A-045",
+          "name": "AI-Generated Surrealism",
+          "description": "Dreamlike impossible scenes only AI can create.",
+          "prompt_inject": "Generate AI surrealism: create physically impossible but visually stunning scenes — melting architecture, floating objects, impossible geometry — that showcase the product in a dreamscape."
+        },
+        {
+          "id": "A-046",
+          "name": "Micro-Interaction Delight",
+          "description": "Tiny animated responses to user actions.",
+          "prompt_inject": "Design micro-interactions: every button press, hover, and scroll should trigger a delightful miniature animation — confetti, ripple, morph, or bounce."
+        },
+        {
+          "id": "A-047",
+          "name": "Neomorphism Soft UI",
+          "description": "Soft extruded elements with inner/outer shadows.",
+          "prompt_inject": "Apply neomorphism: use soft, extruded UI elements with matching background colors, subtle inner and outer shadows creating a clay-like tactile interface."
+        },
+        {
+          "id": "A-048",
+          "name": "Influencer POV Native Ad",
+          "description": "First-person creator-style authentic content.",
+          "prompt_inject": "Frame as influencer POV: use first-person camera angle, casual framing, natural lighting, text overlays in creator style, and authentic 'day-in-my-life' staging."
+        },
+        {
+          "id": "A-049",
+          "name": "Dopamine Color Engineering",
+          "description": "Neurologically optimized color combinations for engagement.",
+          "prompt_inject": "Engineer dopamine colors: use high-saturation complementary pairs (electric purple + lime green, hot pink + cyan) calibrated to trigger maximum visual pleasure."
+        },
+        {
+          "id": "A-050",
+          "name": "NFT Digital Collectible Frame",
+          "description": "Product as exclusive digital artifact with rarity tiers.",
+          "prompt_inject": "Present the product as a digital collectible: use holographic borders, rarity badges (Legendary/Epic/Rare), edition numbers, and blockchain-inspired visual elements."
+        }
+      ]
+    },
+    {
+      "phase": "Phase 6: Near Future (2026-2035)",
+      "items": [
+        {
+          "id": "A-051",
+          "name": "Spatial Computing Ad",
+          "description": "3D product placement in mixed reality spaces.",
+          "prompt_inject": "Design for spatial computing: place the product as a floating 3D hologram in a real environment with depth, parallax, and interactive gaze-point highlights."
+        },
+        {
+          "id": "A-052",
+          "name": "Neural Sound Frequencies",
+          "description": "BGM that triggers focus via specific frequencies.",
+          "prompt_inject": "Instruct the audio engine to use 40Hz binaural beats in the background to enhance viewer focus and product recall."
+        },
+        {
+          "id": "A-053",
+          "name": "Personalized DNA Ad",
+          "description": "Hyper-personalized creative that adapts to viewer data.",
+          "prompt_inject": "Design a template with 5 dynamic swap zones: hero image, headline, CTA color, testimonial, and price — each tagged for real-time personalization by viewer segment."
+        },
+        {
+          "id": "A-054",
+          "name": "Digital Twin Showcase",
+          "description": "Photorealistic interactive 3D product replica.",
+          "prompt_inject": "Render the product as a photorealistic digital twin: show 360° rotation, exploded-view internals, material close-ups, and interactive hotspot annotations."
+        },
+        {
+          "id": "A-055",
+          "name": "Emotion AI Reactive",
+          "description": "Content that shifts based on detected viewer emotion.",
+          "prompt_inject": "Design 3 emotional variants of the same ad: a 'happy' version (warm, bright), a 'curious' version (mysterious, teasing), and a 'stressed' version (calming, reassuring)."
+        },
+        {
+          "id": "A-056",
+          "name": "Haptic Feedback Visual",
+          "description": "Visuals designed to imply tactile sensation.",
+          "prompt_inject": "Design visuals that trigger phantom haptics: show extreme texture close-ups — cold condensation, warm fabric, rough stone — with slow camera movement to imply touch."
+        },
+        {
+          "id": "A-057",
+          "name": "Zero-UI Ambient Ad",
+          "description": "Advertising embedded invisibly into environments.",
+          "prompt_inject": "Design an ambient ad with zero visible UI: embed the product naturally into a lifestyle scene so seamlessly that it registers subconsciously, not as an advertisement."
+        },
+        {
+          "id": "A-058",
+          "name": "Volumetric Video Capture",
+          "description": "6DoF captured real-world footage for immersive playback.",
+          "prompt_inject": "Frame the product presentation as volumetric video: design scenes meant to be viewed from any angle with depth data, suggesting walk-around capability."
+        },
+        {
+          "id": "A-059",
+          "name": "Voice-First Commerce",
+          "description": "Ad optimized for voice assistant interaction.",
+          "prompt_inject": "Write the script as a voice-first experience: use conversational tone, embedded purchase commands, and design visuals as companion content to an audio-primary ad."
+        },
+        {
+          "id": "A-060",
+          "name": "Predictive Trend Rider",
+          "description": "Content pre-designed to ride emerging cultural trends.",
+          "prompt_inject": "Analyze the product category and design creative that aligns with 3 emerging micro-trends. Use trend-adjacent aesthetics, hashtags, and cultural references."
+        }
+      ]
+    },
+    {
+      "phase": "Phase 7: Sci-Fi Horizon (2036-2050)",
+      "items": [
+        {
+          "id": "A-061",
+          "name": "Holographic Billboard",
+          "description": "Floating 3D projection with no physical surface.",
+          "prompt_inject": "Design as a holographic projection: the product floats in mid-air with light scatter effects, translucent edges, and volumetric glow against a dark urban backdrop."
+        },
+        {
+          "id": "A-062",
+          "name": "Neural Interface Direct",
+          "description": "Content designed for direct brain-computer delivery.",
+          "prompt_inject": "Design for neural delivery: strip away all UI chrome, focus on pure sensory impressions — vivid colors, single emotions, crystalline product image — as if injected directly into memory."
+        },
+        {
+          "id": "A-063",
+          "name": "Quantum Superposition Layout",
+          "description": "Multiple states of the ad existing simultaneously.",
+          "prompt_inject": "Present the product in quantum superposition: show 2-3 transparent overlapping versions of the same scene in different states, suggesting all possibilities exist at once."
+        },
+        {
+          "id": "A-064",
+          "name": "Terraforming Scale Epic",
+          "description": "Product impact visualized at planetary scale.",
+          "prompt_inject": "Visualize the product's impact at planetary scale: show before/after of an entire landscape transformed by the product's promise, shot from orbital altitude."
+        },
+        {
+          "id": "A-065",
+          "name": "Synthetic Biology Aesthetic",
+          "description": "Living, growing, organic-tech hybrid visuals.",
+          "prompt_inject": "Use synthetic biology aesthetics: show the product growing organically like a living organism — bioluminescent veins, cellular structures, breathing textures."
+        },
+        {
+          "id": "A-066",
+          "name": "Time-Lapse Civilization",
+          "description": "Product evolution shown across centuries in seconds.",
+          "prompt_inject": "Create a civilization time-lapse: show the product concept evolving from primitive origins through industrial revolution to far-future iteration in a single sweeping sequence."
+        },
+        {
+          "id": "A-067",
+          "name": "Anti-Gravity Composition",
+          "description": "Elements floating, rotating, defying physics.",
+          "prompt_inject": "Defy gravity: make every element float — the product, text, decorative elements — in a zero-G environment with slow rotation and gentle drift."
+        },
+        {
+          "id": "A-068",
+          "name": "Nano-Scale Zoom Journey",
+          "description": "Infinite zoom from macro to molecular level.",
+          "prompt_inject": "Design a nano-zoom journey: start at product scale, zoom into the surface texture, then into molecular structure, revealing hidden beauty at every scale."
+        },
+        {
+          "id": "A-069",
+          "name": "Dyson Sphere Energy Visual",
+          "description": "Cosmic-scale energy harvesting imagery.",
+          "prompt_inject": "Visualize with Dyson Sphere energy: wrap the product in rings of captured stellar energy, cosmic plasma streams, and megastructure frameworks against a star field."
+        },
+        {
+          "id": "A-070",
+          "name": "Memory Palace Architecture",
+          "description": "Product placed within a mnemonic spatial structure.",
+          "prompt_inject": "Build a memory palace: place the product in a grand architectural space designed for memorability — dramatic rooms, impossible staircases, symbolic doorways."
+        }
+      ]
+    },
+    {
+      "phase": "Phase 8: Abstract & Transcendent Concepts",
+      "items": [
+        {
+          "id": "A-071",
+          "name": "Synesthesia Cross-Sense",
+          "description": "Visuals that evoke taste, sound, and touch.",
+          "prompt_inject": "Design for synesthesia: make colors that 'sound loud', textures that 'taste sweet', shapes that 'feel warm'. Cross-wire sensory metaphors throughout."
+        },
+        {
+          "id": "A-072",
+          "name": "Fibonacci Sacred Geometry",
+          "description": "Golden ratio and sacred geometric patterns.",
+          "prompt_inject": "Apply sacred geometry: use Fibonacci spirals, golden ratio proportions, Flower of Life patterns, and Metatron's Cube as the underlying compositional framework."
+        },
+        {
+          "id": "A-073",
+          "name": "Liminal Space Unsettling",
+          "description": "Empty, transitional spaces creating unease and curiosity.",
+          "prompt_inject": "Place the product in a liminal space: empty malls, endless corridors, poolrooms with no people — creating eerie familiarity that makes the product the only anchor point."
+        },
+        {
+          "id": "A-074",
+          "name": "Wabi-Sabi Imperfection",
+          "description": "Beauty in imperfection, transience, and incompleteness.",
+          "prompt_inject": "Apply Wabi-Sabi philosophy: show the product with intentional imperfections — weathered edges, asymmetry, natural aging — celebrating beauty in the incomplete."
+        },
+        {
+          "id": "A-075",
+          "name": "Mandala Meditation Focus",
+          "description": "Concentric, radially symmetric hypnotic patterns.",
+          "prompt_inject": "Design a product mandala: place the product at the center of a radially symmetric pattern with concentric rings of increasing detail, creating meditative focus."
+        },
+        {
+          "id": "A-076",
+          "name": "Negative Space Reveal",
+          "description": "Product or message hidden in the empty space.",
+          "prompt_inject": "Use negative space mastery: hide the product silhouette or brand message in the empty space between visible elements, creating an 'aha' discovery moment."
+        },
+        {
+          "id": "A-077",
+          "name": "Color Field Rothko",
+          "description": "Large blocks of pure color evoking deep emotion.",
+          "prompt_inject": "Apply Rothko's color field approach: use 2-3 large, softly bordered blocks of deeply saturated color to create an emotional atmosphere, with the product floating at the boundary."
+        },
+        {
+          "id": "A-078",
+          "name": "Escher Impossible Object",
+          "description": "Optically impossible constructions that fascinate.",
+          "prompt_inject": "Create an Escher-inspired impossible object: the product exists in a physically impossible arrangement — Penrose triangles, infinite staircases, recursive loops."
+        },
+        {
+          "id": "A-079",
+          "name": "Zen Minimalist Void",
+          "description": "Maximum emptiness with single powerful element.",
+          "prompt_inject": "Apply Zen void: 90% of the frame is empty space. The product sits alone in vast nothingness, creating gravity through absence. One element. One breath."
+        },
+        {
+          "id": "A-080",
+          "name": "Fractal Infinite Detail",
+          "description": "Self-similar patterns at every zoom level.",
+          "prompt_inject": "Design with fractal recursion: the product's form repeats at every scale level — zoom in and the same pattern emerges infinitely, suggesting boundless depth."
+        }
+      ]
+    },
+    {
+      "phase": "Phase 9: Psychological Warfare Tactics",
+      "items": [
+        {
+          "id": "A-081",
+          "name": "Anchoring Price Illusion",
+          "description": "Strategic price presentation to manipulate perceived value.",
+          "prompt_inject": "Deploy price anchoring: show a dramatically inflated 'original' price crossed out next to the real price. Add a premium competitor comparison to make the deal irresistible."
+        },
+        {
+          "id": "A-082",
+          "name": "Scarcity Countdown",
+          "description": "Limited time/quantity urgency triggers.",
+          "prompt_inject": "Trigger scarcity response: add countdown timers, 'Only 3 left' badges, 'limited edition' stamps, and real-time purchase notifications to create FOMO."
+        },
+        {
+          "id": "A-083",
+          "name": "Social Proof Avalanche",
+          "description": "Overwhelming evidence of popularity and trust.",
+          "prompt_inject": "Stack social proof: include star ratings, review count (10,000+), celebrity endorsement, 'as seen on' media logos, and real-time 'X people viewing now' counters."
+        },
+        {
+          "id": "A-084",
+          "name": "Loss Aversion Frame",
+          "description": "Emphasize what viewer loses by NOT buying.",
+          "prompt_inject": "Frame through loss aversion: show the painful 'without' scenario first in desaturated gray, then the 'with product' scenario in vivid color. Make NOT buying feel costly."
+        },
+        {
+          "id": "A-085",
+          "name": "Authority Figure Endorsement",
+          "description": "Expert, doctor, or scientist backing the product.",
+          "prompt_inject": "Deploy authority bias: show the product endorsed by a lab-coat professional, framed by certificates, clinical data, and institutional typography that screams credibility."
+        },
+        {
+          "id": "A-086",
+          "name": "Bandwagon Momentum",
+          "description": "Everyone's doing it, don't get left behind.",
+          "prompt_inject": "Create bandwagon momentum: show crowds using the product, trending hashtag counters climbing, world map with adoption dots spreading virally across continents."
+        },
+        {
+          "id": "A-087",
+          "name": "Reciprocity Gift Hook",
+          "description": "Give something free to create obligation to buy.",
+          "prompt_inject": "Trigger reciprocity: lead with a genuine free gift, valuable tip, or exclusive content before the pitch. Design the freebie to look premium and desirable."
+        },
+        {
+          "id": "A-088",
+          "name": "Zeigarnik Cliffhanger",
+          "description": "Incomplete information that compels completion.",
+          "prompt_inject": "Apply the Zeigarnik effect: reveal 70% of the product benefit but leave a tantalizing gap. Use 'Part 1 of 3' labels, blurred reveals, and 'swipe to discover' cues."
+        },
+        {
+          "id": "A-089",
+          "name": "Mirror Neuron Trigger",
+          "description": "Show someone experiencing the product to trigger empathy.",
+          "prompt_inject": "Activate mirror neurons: show a person experiencing genuine joy/relief/satisfaction using the product in extreme close-up facial expressions that the viewer involuntarily mimics."
+        },
+        {
+          "id": "A-090",
+          "name": "Cognitive Ease Fluency",
+          "description": "Make everything effortlessly easy to process.",
+          "prompt_inject": "Maximize cognitive fluency: use high-contrast text, simple words, rhyming taglines, symmetrical layouts, and familiar visual patterns. If it's easy to read, it feels true."
+        }
+      ]
+    },
+    {
+      "phase": "Phase 10: The Grand Finale",
+      "items": [
+        {
+          "id": "A-091",
+          "name": "Cinematic One-Take Flow",
+          "description": "Seamless single-shot narrative with no cuts.",
+          "prompt_inject": "Design as a single continuous take: the camera never cuts. One fluid motion through environments, revealing the product story in an unbroken choreographed sequence."
+        },
+        {
+          "id": "A-092",
+          "name": "Fourth Wall Break",
+          "description": "Character directly addresses and acknowledges the viewer.",
+          "prompt_inject": "Break the fourth wall: have the subject look directly into camera, acknowledge they're in an ad, and use meta-humor to create authentic connection with the viewer."
+        },
+        {
+          "id": "A-093",
+          "name": "Epic Orchestral Build",
+          "description": "Musical score that builds from whisper to thunderous climax.",
+          "prompt_inject": "Score with epic orchestral build: start with a solo piano, layer strings, add percussion, build to a full orchestra crescendo at the product reveal. Design visuals to match the dynamic range."
+        },
+        {
+          "id": "A-094",
+          "name": "Multi-Universe Split",
+          "description": "Same product shown across parallel reality versions.",
+          "prompt_inject": "Split into parallel universes: show the same product in 3-4 wildly different realities (medieval, cyberpunk, underwater, space) in split-screen, converging to one at the end."
+        },
+        {
+          "id": "A-095",
+          "name": "Reverse Chronology",
+          "description": "Story told backwards from result to origin.",
+          "prompt_inject": "Tell the story in reverse: start with the triumphant result, then rewind scene by scene to the moment of purchase. Each rewind reveals a new layer of the product's impact."
+        },
+        {
+          "id": "A-096",
+          "name": "Silence is Golden",
+          "description": "Complete silence with only visuals speaking.",
+          "prompt_inject": "Use total silence: no music, no voiceover, no sound effects. Let the visuals carry everything. Use title cards for text. The silence itself becomes the loudest statement."
+        },
+        {
+          "id": "A-097",
+          "name": "Ultra-Low Latency Generation",
+          "description": "Instant high-quality video completion.",
+          "prompt_inject": "Optimize for speed. Minimize transition complexity to ensure the 60fps result feels instant yet cinematic."
+        },
+        {
+          "id": "A-098",
+          "name": "Recursive Meta-Ad",
+          "description": "An ad about making an ad about the product.",
+          "prompt_inject": "Go meta-recursive: show the process of creating this very ad — the brainstorming, the AI prompts, the iterations — making the behind-the-scenes the content itself."
+        },
+        {
+          "id": "A-099",
+          "name": "Emotional Time Capsule",
+          "description": "Future-you thanks past-you for discovering this product.",
+          "prompt_inject": "Create a time capsule: frame the ad as a message from the viewer's future self, thanking them for discovering this product today. Use aged film effects transitioning to crystal clarity."
+        },
+        {
+          "id": "A-100",
+          "name": "The Banseok Singularity",
+          "description": "All 99 techniques fused into one transcendent creative.",
+          "prompt_inject": "ACTIVATE SINGULARITY MODE: Select the 5 most powerful techniques from the Arsenal that match this product's essence. Layer them simultaneously — visual style, psychological trigger, narrative structure, compositional framework, and emotional frequency — into a single unified masterpiece that transcends any individual technique."
+        }
+      ]
+    }
+  ]
+}
