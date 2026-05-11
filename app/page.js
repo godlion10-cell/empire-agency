@@ -15,8 +15,8 @@ export default function AgencyDashboard() {
     <div className="p-6 md:p-8 bg-gray-950 min-h-screen text-gray-200">
       <header className="mb-8 border-b border-gray-800 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-amber-500">🏢 Empire Agency (2호기)</h1>
-          <p className="text-gray-400 mt-2">클라이언트 광고 캠페인 통합 관제 센터</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-amber-500">🏢 엠파이어 대행사 통합 관제소</h1>
+          <p className="text-gray-400 mt-2">클라이언트 광고 캠페인 통합 통제 및 배포</p>
         </div>
         <Link
           href="/agency/campaigns/new"
