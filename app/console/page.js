@@ -561,6 +561,22 @@ export default function EmpireConsole() {
         </div>
       </header>
 
+      {/* ═══ Full-screen 로딩 오버레이 (Global Engine) ═══ */}
+      {(globalProcessing || absorbingId || radarScanning) && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center p-8 bg-gray-900 border border-purple-500 rounded-2xl shadow-2xl max-w-md mx-4">
+            <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+            <h2 className="mt-6 text-2xl font-bold text-white text-center">
+              {absorbingId ? '🧬 글로벌 DNA 심층 추출 중...' : radarScanning ? '📡 글로벌 레이더 스캔 중...' : '🔥 글로벌 DNA 심층 추출 중...'}
+            </h2>
+            <p className="mt-2 text-purple-300 text-center">
+              {absorbingId ? '해외 VVIP 대본을 한국형 타겟으로 재창조하고 있습니다.' : radarScanning ? '전 세계 트렌드를 실시간 스캔하고 있습니다.' : '원본 콘텐츠를 분석하고 심리 어댑터를 적용 중입니다.'}
+            </p>
+            <p className="mt-1 text-sm text-gray-400">(최대 10~15초 소요)</p>
+          </div>
+        </div>
+      )}
+
       {/* STEP 1: 마스터 입력 포털 */}
       <section className="mb-10 bg-gray-900/50 p-6 md:p-8 rounded-2xl border border-gray-800 shadow-2xl">
         <h2 className="text-amber-500 font-bold mb-4 text-sm uppercase tracking-widest">🔻 STEP 1: 마스터 입력 포털</h2>
