@@ -40,6 +40,20 @@ export default function EmpireConsole() {
   const [copyGenerating, setCopyGenerating] = useState(false); // 카피 생성 중
   const [visualGenerating, setVisualGenerating] = useState(false); // 비주얼 생성 중
 
+  // ★ Global Finder 상태
+  const [globalResult, setGlobalResult] = useState(null);
+  const [globalProcessing, setGlobalProcessing] = useState(false);
+  const [globalTab, setGlobalTab] = useState('URL'); // 'URL' | 'FILE' | 'RADAR'
+  const [globalFile, setGlobalFile] = useState(null);
+  const [globalFileName, setGlobalFileName] = useState('');
+
+  // ★ Global Radar 상태
+  const [radarKeyword, setRadarKeyword] = useState('');
+  const [radarRegion, setRadarRegion] = useState('US');
+  const [radarVideos, setRadarVideos] = useState([]);
+  const [radarScanning, setRadarScanning] = useState(false);
+  const [absorbingId, setAbsorbingId] = useState(null); // 현재 DNA 추출 중인 videoId
+
   // ★ 각 액션별 인라인 진행 + 결과 상태
   const [actionStates, setActionStates] = useState({
     summary: { loading: false, percent: 0, status: '' },
@@ -112,6 +126,106 @@ export default function EmpireConsole() {
     }
   };
 
+  // ★ 엔진 D: Global Finder — 해외 콘텐츠 한국화
+  const handleGlobalFinder = async () => {
+    if (globalProcessing) return;
+    if (globalTab === 'URL' && !masterInput) return;
+    if (globalTab === 'FILE' && !globalFile) return;
+
+    setGlobalProcessing(true);
+    setGlobalResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('type', globalTab);
+      if (globalTab === 'URL') formData.append('url', masterInput);
+      if (globalTab === 'FILE' && globalFile) formData.append('file', globalFile);
+
+      const res = await fetch('/api/engine/global-processor', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(`HTTP ${res.status}: ${errBody.error || res.statusText}`);
+      }
+
+      const data = await res.json();
+      if (data.success) {
+        setGlobalResult(data.data);
+        setToastMsg(`✅ Global Finder 완료: ${data.data.detected_language} → KR`);
+        setTimeout(() => setToastMsg(null), 3000);
+      } else {
+        throw new Error(data.error || 'Unknown error');
+      }
+    } catch (e) {
+      console.error('[GLOBAL] Error:', e.message);
+      setToastMsg(`❌ Global Finder 실패: ${e.message}`);
+      setTimeout(() => setToastMsg(null), 5000);
+    } finally {
+      setGlobalProcessing(false);
+    }
+  };
+
+  // ★ Global Radar — YouTube 50개 트렌드 스캔
+  const handleRadarScan = async () => {
+    if (!radarKeyword || radarScanning) return;
+    setRadarScanning(true);
+    setRadarVideos([]);
+    setGlobalResult(null);
+    try {
+      const res = await fetch(`/api/engine/global-radar?keyword=${encodeURIComponent(radarKeyword)}&regionCode=${radarRegion}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(`HTTP ${res.status}: ${err.error || res.statusText}`);
+      }
+      const data = await res.json();
+      if (data.success) {
+        setRadarVideos(data.videos || []);
+        setToastMsg(`📡 ${data.count}개 영상 스캔 완료 (${radarRegion})`);
+        setTimeout(() => setToastMsg(null), 3000);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (e) {
+      setToastMsg(`❌ Radar 실패: ${e.message}`);
+      setTimeout(() => setToastMsg(null), 5000);
+    } finally {
+      setRadarScanning(false);
+    }
+  };
+
+  // ★ Absorb DNA — 개별 영상 선택 → Global Processor 파이프라인
+  const handleAbsorbDNA = async (videoId) => {
+    if (absorbingId) return;
+    setAbsorbingId(videoId);
+    setGlobalResult(null);
+    try {
+      const formData = new FormData();
+      formData.append('type', 'URL');
+      formData.append('url', `https://youtube.com/watch?v=${videoId}`);
+      const res = await fetch('/api/engine/global-processor', { method: 'POST', body: formData });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(`HTTP ${res.status}: ${err.error || res.statusText}`);
+      }
+      const data = await res.json();
+      if (data.success) {
+        setGlobalResult(data.data);
+        setToastMsg(`✅ DNA Absorbed: ${data.data.detected_language} → KR`);
+        setTimeout(() => setToastMsg(null), 3000);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (e) {
+      setToastMsg(`❌ DNA 추출 실패: ${e.message}`);
+      setTimeout(() => setToastMsg(null), 5000);
+    } finally {
+      setAbsorbingId(null);
+    }
+  };
+
   // 엔진 2: 원본 숏폼 요약 — 인라인 진행 표시
   const handleSummaryEngine = async () => {
     if (!masterInput || summaryProcessing) return;
@@ -140,6 +254,17 @@ export default function EmpireConsole() {
         body: JSON.stringify({ url: masterInput }),
       });
       timers.forEach(t => clearTimeout(t));
+
+      // ── Strict HTTP Error Handling ──
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        const errMsg = `HTTP ${res.status}: ${errBody.error || res.statusText}`;
+        console.error('[SUMMARY] API Error:', errMsg);
+        updateAction('summary', { loading: false, percent: 100, status: `❌ ${errMsg}` });
+        setSummaryProcessing(false);
+        return;
+      }
+
       updateAction('summary', { percent: 90, status: '📦 데이터 수신 완료...' });
 
       const data = await res.json();
@@ -446,6 +571,7 @@ export default function EmpireConsole() {
             { id: 'recreate', icon: '🚀', label: '롱폼 재창조 (시네마틱)', color: 'amber' },
             { id: 'summary', icon: '✂️', label: '원본 숏폼 요약', color: 'cyan' },
             { id: 'commerce', icon: '🛍️', label: '커머스 맞춤 광고', color: 'pink' },
+            { id: 'global', icon: '🌍', label: 'Global Finder', color: 'violet' },
           ].map((engine) => (
             <button
               key={engine.id}
@@ -456,9 +582,9 @@ export default function EmpireConsole() {
                   : 'bg-gray-800/50 border-gray-700 text-gray-400 hover:border-gray-600'
               }`}
               style={activeEngine === engine.id ? {
-                background: engine.id === 'recreate' ? 'rgba(217,119,6,0.15)' : engine.id === 'summary' ? 'rgba(6,182,212,0.15)' : 'rgba(236,72,153,0.15)',
-                borderColor: engine.id === 'recreate' ? '#d97706' : engine.id === 'summary' ? '#06b6d4' : '#ec4899',
-                color: engine.id === 'recreate' ? '#fbbf24' : engine.id === 'summary' ? '#22d3ee' : '#f472b6',
+                background: engine.id === 'recreate' ? 'rgba(217,119,6,0.15)' : engine.id === 'summary' ? 'rgba(6,182,212,0.15)' : engine.id === 'commerce' ? 'rgba(236,72,153,0.15)' : 'rgba(139,92,246,0.15)',
+                borderColor: engine.id === 'recreate' ? '#d97706' : engine.id === 'summary' ? '#06b6d4' : engine.id === 'commerce' ? '#ec4899' : '#8b5cf6',
+                color: engine.id === 'recreate' ? '#fbbf24' : engine.id === 'summary' ? '#22d3ee' : engine.id === 'commerce' ? '#f472b6' : '#a78bfa',
               } : {}}
             >
               {engine.icon} {engine.label}
@@ -684,6 +810,260 @@ export default function EmpireConsole() {
           </div>
         )}
 
+        {/* 엔진 D: Global Finder */}
+        {activeEngine === 'global' && (
+          <div>
+            <p className="text-[10px] text-violet-400 mb-3 font-medium">🌍 해외 콘텐츠(EN/CN/JP)를 한국 시장에 최적화합니다. YouTube URL 또는 MP4/MP3 파일을 업로드하세요.</p>
+            {/* URL / FILE 서브탭 */}
+            <div className="flex gap-2 mb-4">
+              <button onClick={() => setGlobalTab('URL')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all border ${globalTab === 'URL' ? 'bg-violet-900/30 border-violet-600 text-violet-300' : 'bg-gray-800/50 border-gray-700 text-gray-400 hover:border-violet-700'}`}>🔗 YouTube URL</button>
+              <button onClick={() => setGlobalTab('FILE')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all border ${globalTab === 'FILE' ? 'bg-violet-900/30 border-violet-600 text-violet-300' : 'bg-gray-800/50 border-gray-700 text-gray-400 hover:border-violet-700'}`}>📁 파일 업로드</button>
+              <button onClick={() => setGlobalTab('RADAR')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all border ${globalTab === 'RADAR' ? 'bg-violet-900/30 border-violet-600 text-violet-300' : 'bg-gray-800/50 border-gray-700 text-gray-400 hover:border-violet-700'}`}>📡 Global Radar</button>
+            </div>
+
+            {globalTab === 'URL' && (
+              <div className="flex flex-col md:flex-row gap-3">
+                <input
+                  type="text"
+                  value={masterInput}
+                  onChange={(e) => setMasterInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !globalProcessing && masterInput && handleGlobalFinder()}
+                  placeholder="해외 YouTube URL (예: https://youtube.com/watch?v=... — EN/CN/JP 지원)"
+                  className="flex-1 bg-black border border-gray-700 rounded-lg p-3.5 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 outline-none transition-all placeholder-gray-600"
+                />
+                <button
+                  disabled={globalProcessing || !masterInput}
+                  onClick={handleGlobalFinder}
+                  className={`px-8 py-3.5 rounded-lg font-bold text-sm whitespace-nowrap transition-all ${
+                    globalProcessing
+                      ? 'bg-gray-700 text-gray-400 cursor-not-allowed animate-pulse'
+                      : !masterInput
+                      ? 'bg-gray-800 text-violet-700 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white shadow-lg shadow-violet-900/30'
+                  }`}
+                >
+                  {globalProcessing ? '⚡ DNA 추출 중...' : '🌍 Global Finder 가동'}
+                </button>
+              </div>
+            )}
+
+            {globalTab === 'FILE' && (
+              <div className="space-y-3">
+                <div
+                  className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${
+                    globalFile ? 'border-violet-500 bg-violet-900/10' : 'border-gray-700 hover:border-violet-600 bg-black/30'
+                  }`}
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-violet-400', 'bg-violet-900/20'); }}
+                  onDragLeave={(e) => { e.currentTarget.classList.remove('border-violet-400', 'bg-violet-900/20'); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove('border-violet-400', 'bg-violet-900/20');
+                    const f = e.dataTransfer.files[0];
+                    if (f && (f.type.startsWith('video/') || f.type.startsWith('audio/'))) {
+                      setGlobalFile(f);
+                      setGlobalFileName(f.name);
+                    }
+                  }}
+                  onClick={() => document.getElementById('global-file-input').click()}
+                >
+                  {globalFile ? (
+                    <div>
+                      <p className="text-violet-400 font-bold text-sm">✅ {globalFileName}</p>
+                      <p className="text-gray-500 text-[10px] mt-1">{(globalFile.size / 1024 / 1024).toFixed(1)}MB · 클릭하여 변경</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-gray-400 text-sm">📁 MP4/MP3 파일을 드래그하거나 클릭하세요</p>
+                      <p className="text-gray-600 text-[10px] mt-1">Gemini 2.5 Flash STT로 자동 전사</p>
+                    </div>
+                  )}
+                  <input id="global-file-input" type="file" className="hidden" accept="video/*,audio/*" onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) { setGlobalFile(f); setGlobalFileName(f.name); }
+                  }} />
+                </div>
+                <button
+                  disabled={globalProcessing || !globalFile}
+                  onClick={handleGlobalFinder}
+                  className={`w-full py-3.5 rounded-lg font-bold text-sm transition-all ${
+                    globalProcessing
+                      ? 'bg-gray-700 text-gray-400 cursor-not-allowed animate-pulse'
+                      : !globalFile
+                      ? 'bg-gray-800 text-violet-700 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white shadow-lg shadow-violet-900/30'
+                  }`}
+                >
+                  {globalProcessing ? '⚡ DNA 추출 중...' : '🚀 Launch Empire Engine'}
+                </button>
+              </div>
+            )}
+
+            {globalTab === 'RADAR' && (
+              <div className="space-y-4">
+                {/* 검색 바 */}
+                <div className="flex flex-col md:flex-row gap-3">
+                  <input
+                    type="text"
+                    value={radarKeyword}
+                    onChange={(e) => setRadarKeyword(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && !radarScanning && radarKeyword && handleRadarScan()}
+                    placeholder="글로벌 트렌드 키워드 (예: AI marketing, 短视频, ショート動画)"
+                    className="flex-1 bg-black border border-gray-700 rounded-lg p-3.5 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 outline-none transition-all placeholder-gray-600"
+                  />
+                  <select
+                    value={radarRegion}
+                    onChange={(e) => setRadarRegion(e.target.value)}
+                    className="bg-black border border-gray-700 rounded-lg px-4 py-3.5 text-sm text-violet-300 focus:border-violet-500 outline-none cursor-pointer"
+                  >
+                    <option value="US">🇺🇸 US (미국)</option>
+                    <option value="CN">🇨🇳 CN (중국)</option>
+                    <option value="JP">🇯🇵 JP (일본)</option>
+                    <option value="KR">🇰🇷 KR (한국)</option>
+                    <option value="GB">🇬🇧 GB (영국)</option>
+                    <option value="IN">🇮🇳 IN (인도)</option>
+                    <option value="DE">🇩🇪 DE (독일)</option>
+                    <option value="FR">🇫🇷 FR (프랑스)</option>
+                    <option value="BR">🇧🇷 BR (브라질)</option>
+                    <option value="TH">🇹🇭 TH (태국)</option>
+                    <option value="VN">🇻🇳 VN (베트남)</option>
+                  </select>
+                  <button
+                    disabled={radarScanning || !radarKeyword}
+                    onClick={handleRadarScan}
+                    className={`px-8 py-3.5 rounded-lg font-bold text-sm whitespace-nowrap transition-all ${
+                      radarScanning
+                        ? 'bg-gray-700 text-gray-400 cursor-not-allowed animate-pulse'
+                        : !radarKeyword
+                        ? 'bg-gray-800 text-violet-700 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white shadow-lg shadow-violet-900/30'
+                    }`}
+                  >
+                    {radarScanning ? '📡 스캔 중...' : '📡 Scan Global Trends'}
+                  </button>
+                </div>
+
+                {/* 50개 영상 그리드 */}
+                {radarVideos.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-violet-400 text-xs font-bold">📡 {radarVideos.length}개 영상 발견 — 클릭하여 DNA 추출</p>
+                      <span className="text-[9px] text-gray-600">{radarKeyword} · {radarRegion}</span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 max-h-[600px] overflow-y-auto pr-1">
+                      {radarVideos.map((v) => (
+                        <div key={v.videoId} className={`bg-black/40 rounded-lg border overflow-hidden transition-all hover:border-violet-600 group ${
+                          absorbingId === v.videoId ? 'border-violet-500 ring-1 ring-violet-500/30' : 'border-gray-800'
+                        }`}>
+                          <div className="relative">
+                            <img src={v.thumbnail} alt={v.title} className="w-full aspect-video object-cover" loading="lazy" />
+                            <button
+                              disabled={!!absorbingId}
+                              onClick={() => handleAbsorbDNA(v.videoId)}
+                              className={`absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ${
+                                absorbingId === v.videoId ? 'opacity-100 bg-violet-900/80' : 'bg-black/60 hover:bg-violet-900/70'
+                              }`}
+                            >
+                              <span className="text-white text-xs font-bold px-3 py-1.5 rounded-lg bg-violet-600/80 backdrop-blur">
+                                {absorbingId === v.videoId ? '⚡ 추출 중...' : '🧬 Absorb DNA'}
+                              </span>
+                            </button>
+                          </div>
+                          <div className="p-2">
+                            <p className="text-[10px] text-white font-medium leading-tight line-clamp-2">{v.title}</p>
+                            <p className="text-[8px] text-gray-500 mt-1 truncate">{v.channel}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 특성 카드 */}
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="bg-black/40 p-3 rounded-lg border border-gray-800 text-center">
+                <p className="text-violet-400 text-xs font-bold">🔤 언어 감지</p>
+                <p className="text-[9px] text-gray-500 mt-1">EN/CN/JP 자동 인식</p>
+              </div>
+              <div className="bg-black/40 p-3 rounded-lg border border-gray-800 text-center">
+                <p className="text-violet-400 text-xs font-bold">🧠 심리 어댑터</p>
+                <p className="text-[9px] text-gray-500 mt-1">한국 소비자 심리 최적화</p>
+              </div>
+              <div className="bg-black/40 p-3 rounded-lg border border-gray-800 text-center">
+                <p className="text-violet-400 text-xs font-bold">📝 3종 카피</p>
+                <p className="text-[9px] text-gray-500 mt-1">15초/30초/60초 자동 생성</p>
+              </div>
+            </div>
+
+            {/* Global Finder 결과 */}
+            {globalResult && (
+              <div className="mt-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-violet-400 text-xs font-bold">🌍 Global Adaptation 결과</h4>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(JSON.stringify(globalResult, null, 2)); setToastMsg('✅ Global 결과 JSON 복사 완료'); setTimeout(() => setToastMsg(null), 2000); }}
+                    className="text-[9px] text-violet-500 hover:text-violet-400"
+                  >📋 JSON 복사</button>
+                </div>
+                {/* 언어 감지 + 요약 */}
+                <div className="bg-black/40 p-3 rounded-lg border border-violet-900/30 text-[10px]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-2 py-0.5 rounded bg-violet-900/50 text-violet-300 font-bold text-[9px]">{globalResult.detected_language}</span>
+                    <span className="text-gray-500">→</span>
+                    <span className="px-2 py-0.5 rounded bg-green-900/50 text-green-300 font-bold text-[9px]">KR 🇰🇷</span>
+                    {globalResult.viral_potential && <span className={`ml-auto px-2 py-0.5 rounded font-bold text-[9px] ${globalResult.viral_potential >= 8 ? 'bg-red-900/50 text-red-300' : globalResult.viral_potential >= 6 ? 'bg-amber-900/50 text-amber-300' : 'bg-gray-700 text-gray-400'}`}>🔥 Viral {globalResult.viral_potential}/10</span>}
+                  </div>
+                  <p className="text-gray-400 italic">{globalResult.original_summary}</p>
+                </div>
+                {/* 한국형 적응 결과 */}
+                {globalResult.korean_adaptation && (
+                  <div className="space-y-2">
+                    <div className="bg-black/40 p-3 rounded-lg border border-violet-900/30">
+                      <p className="text-white font-bold text-[11px]">{globalResult.korean_adaptation.title}</p>
+                      <p className="text-violet-300 text-[10px] mt-1">🎯 Hook: {globalResult.korean_adaptation.hook}</p>
+                    </div>
+                    {globalResult.korean_adaptation.copies?.map((copy, i) => (
+                      <div key={i} className="bg-black/30 p-3 rounded-lg border border-gray-800 text-[10px]">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="px-2 py-0.5 rounded bg-violet-900/40 text-violet-300 font-bold text-[8px]">⏱️ {copy.duration}</span>
+                          <button onClick={() => { navigator.clipboard.writeText(`${copy.headline}\n${copy.body}\n${copy.cta}`); setToastMsg(`✅ ${copy.duration} 카피 복사`); setTimeout(() => setToastMsg(null), 2000); }} className="ml-auto text-[8px] text-gray-500 hover:text-violet-400">📋</button>
+                        </div>
+                        <p className="text-white font-bold">{copy.headline}</p>
+                        <p className="text-gray-300 mt-1">{copy.body}</p>
+                        <p className="text-violet-400 mt-1 font-medium">{copy.cta}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* 심리 기법 + 키워드 */}
+                {globalResult.psychological_triggers?.length > 0 && (
+                  <div className="flex gap-1 flex-wrap">
+                    <span className="text-[8px] text-gray-600 mr-1">🧠 심리 기법:</span>
+                    {globalResult.psychological_triggers.map((t, i) => <span key={i} className="px-1.5 py-0.5 bg-purple-900/30 text-purple-300 rounded text-[8px]">{t}</span>)}
+                  </div>
+                )}
+                {globalResult.keywords?.length > 0 && (
+                  <div className="flex gap-1 flex-wrap">
+                    <span className="text-[8px] text-gray-600 mr-1">🏷️ 키워드:</span>
+                    {globalResult.keywords.map((k, i) => <span key={i} className="px-1.5 py-0.5 bg-violet-900/30 text-violet-300 rounded text-[8px]">{k}</span>)}
+                  </div>
+                )}
+                {/* MJ Visual Prompt */}
+                {globalResult.korean_adaptation?.visual_prompt && (
+                  <div className="bg-black/50 p-3 rounded-lg border border-violet-900/30">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[8px] text-violet-500 font-bold">🎨 MJ Visual Prompt</span>
+                      <button onClick={() => { navigator.clipboard.writeText(globalResult.korean_adaptation.visual_prompt); setToastMsg('✅ MJ 프롬프트 복사 완료'); setTimeout(() => setToastMsg(null), 2000); }} className="text-[8px] text-gray-500 hover:text-violet-400">📋 복사</button>
+                    </div>
+                    <p className="text-[9px] text-green-400 font-mono leading-relaxed select-all">{globalResult.korean_adaptation.visual_prompt}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* 엔진 상태 표시 */}
         {isProcessing && (
           <div className="mt-4 flex items-center gap-3 text-xs text-amber-400">
@@ -694,7 +1074,7 @@ export default function EmpireConsole() {
       </section>
 
       {/* Master DNA 하위 기능 버튼 — 탭별 조건부 렌더링 */}
-      {(masterDNA.brand_name || summaryResult || commerceResult) && (
+      {(masterDNA.brand_name || summaryResult || commerceResult || globalResult) && (
         <section className="mb-6 bg-gray-900/30 p-4 rounded-xl border border-gray-800">
           <div className="flex items-center gap-3 mb-3">
             <span className="text-amber-500 text-xs font-bold">🧬 MASTER DNA</span>
@@ -702,9 +1082,10 @@ export default function EmpireConsole() {
             <span className={`text-[9px] px-2 py-0.5 rounded font-bold ${
               activeEngine === 'recreate' ? 'bg-amber-900/30 text-amber-400' :
               activeEngine === 'summary' ? 'bg-cyan-900/30 text-cyan-400' :
+              activeEngine === 'global' ? 'bg-violet-900/30 text-violet-400' :
               'bg-pink-900/30 text-pink-400'
             }`}>
-              {activeEngine === 'recreate' ? '🚀 재창조 모드' : activeEngine === 'summary' ? '✂️ 요약 모드' : '🛍️ 커머스 모드'}
+              {activeEngine === 'recreate' ? '🚀 재창조 모드' : activeEngine === 'summary' ? '✂️ 요약 모드' : activeEngine === 'global' ? '🌍 글로벌 모드' : '🛍️ 커머스 모드'}
             </span>
           </div>
           <div className="flex gap-2 flex-wrap">
@@ -755,12 +1136,39 @@ export default function EmpireConsole() {
                           facetrack: { url: '/api/process-video', body: { url: masterInput, mode: 'facetrack', highlights: summaryResult?.highlights||[] }, ss: [{at:2e3,p:20,s:'📡 영상 메타데이터 로드...'},{at:5e3,p:40,s:'🎯 Gemini AI 인물 분석...'},{at:10e3,p:60,s:'📐 9:16 크롭 좌표 계산...'},{at:18e3,p:78,s:'🎬 FFmpeg 명령 생성...'}] },
                           banner: { url: '/api/generate-image', body: { prompt: `Instagram Reels cover "${summaryResult?.source?.title||masterInput}", Korean text, viral --ar 9:16 --v 6.0`, style: 'sns_banner' }, ss: [{at:2e3,p:40,s:'🎨 설계...'},{at:5e3,p:70,s:'🖼️ 렌더링...'}] } };
                         const ep = eps[key]; const ts = ep.ss.map(s => setTimeout(() => updateAction(key, { percent: s.p, status: s.s }), s.at));
-                        try { const r = await fetch(ep.url, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(ep.body) }); ts.forEach(t=>clearTimeout(t)); updateAction(key, { percent: 90, status: '📦 데이터 수신 완료...' });
-                          const d = await r.json(); if (d.success) { updateAction(key, { loading: false, percent: 100, status: `✅ 완료! ${key==='subtitle' ? `(${d.data?.sourceLabel||d.data?.source||''})` : key==='facetrack' ? `(${d.data?.crops?.length||0}개 크롭 포인트)` : ''}`, result: d.data });
-                            if (key==='subtitle') setSubtitleText(d.data?.text || d.data?.segments?.map(s=>`[${s.start}s→${s.end||''}s] ${s.text}`).join('\n') || '');
+                        try {
+                          const r = await fetch(ep.url, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(ep.body) });
+                          ts.forEach(t=>clearTimeout(t));
+                          // ── Strict HTTP Error Handling: 401/500 등 즉시 표시 ──
+                          if (!r.ok) {
+                            const errBody = await r.json().catch(() => ({}));
+                            const errMsg = `HTTP ${r.status}: ${errBody.error || r.statusText}`;
+                            console.error(`[${key.toUpperCase()}] API Error:`, errMsg);
+                            updateAction(key, { loading: false, percent: 100, status: `❌ ${errMsg}` });
+                            if (key === 'subtitle') setSubtitleText(`❌ 자막 추출 실패 (Failed):\n${errMsg}\n\n* Vercel 로그 또는 401 인증 문제를 확인하세요.`);
+                            return;
+                          }
+                          updateAction(key, { percent: 90, status: '📦 데이터 수신 완료...' });
+                          const d = await r.json();
+                          if (d.success) {
+                            updateAction(key, { loading: false, percent: 100, status: `✅ 완료! ${key==='subtitle' ? `(${d.data?.sourceLabel||d.data?.source||''})` : key==='facetrack' ? `(${d.data?.crops?.length||0}개 크롭 포인트)` : ''}`, result: d.data });
+                            if (key==='subtitle') {
+                              const text = d.data?.text || d.data?.segments?.map(s=>`[${s.start}s→${s.end||''}s] ${s.text}`).join('\n') || '';
+                              if (!text) { setSubtitleText('❌ 자막 추출 실패: 백엔드가 빈 텍스트를 반환했습니다.'); }
+                              else { setSubtitleText(text); }
+                            }
                             if (key==='facetrack' && d.data?.videoUrl) setRenderVideo(d.data.videoUrl);
-                          } else { updateAction(key, { loading: false, percent: 100, status: `❌ ${d.error}` }); }
-                        } catch(e) { ts.forEach(t=>clearTimeout(t)); updateAction(key, { loading: false, percent: 100, status: `❌ ${e.message}` }); }
+                          } else {
+                            const failMsg = d.error || '알 수 없는 오류';
+                            updateAction(key, { loading: false, percent: 100, status: `❌ ${failMsg}` });
+                            if (key === 'subtitle') setSubtitleText(`❌ 자막 추출 실패:\n${failMsg}`);
+                          }
+                        } catch(e) {
+                          ts.forEach(t=>clearTimeout(t));
+                          console.error(`[${key.toUpperCase()}] Network Error:`, e);
+                          updateAction(key, { loading: false, percent: 100, status: `❌ ${e.message}` });
+                          if (key === 'subtitle') setSubtitleText(`❌ 자막 추출 실패 (Network Error):\n${e.message}\n\n* 네트워크 연결 또는 서버 상태를 확인하세요.`);
+                        }
                       }}
                       className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-bold transition-all border ${st?.loading ? 'opacity-60 cursor-wait border-cyan-700/50 text-cyan-400 animate-pulse' : btn.hl ? 'bg-cyan-900/30 border-cyan-600/50 text-cyan-300 hover:bg-cyan-800/40 hover:border-cyan-500' : 'bg-black/40 border-gray-800 text-gray-300 hover:bg-cyan-900/20 hover:border-cyan-700/50 hover:text-cyan-300'}`}
                     ><span>{btn.icon}</span><span>{btn.label}</span></button>);
@@ -814,9 +1222,33 @@ export default function EmpireConsole() {
                         {c.confidence && <div className="mt-1 flex items-center gap-1"><span className="text-[8px] text-gray-600">신뢰도:</span><div className="flex-1 bg-gray-800 h-1 rounded-full overflow-hidden"><div className={`h-full rounded-full ${c.confidence>=0.8?'bg-green-500':c.confidence>=0.6?'bg-amber-500':'bg-red-500'}`} style={{width:`${c.confidence*100}%`}}></div></div><span className="text-[8px] text-gray-400">{Math.round(c.confidence*100)}%</span></div>}
                       </div>)}
                       {actionStates.facetrack.result.ffmpegCommands?.length > 0 && (
-                        <div className="bg-black/60 p-2 rounded border border-gray-700 mt-2">
-                          <p className="text-amber-400 text-[9px] font-bold mb-1">🖥️ FFmpeg 명령어 (복사하여 실행)</p>
-                          {actionStates.facetrack.result.ffmpegCommands.map((cmd,i) => <code key={i} className="block text-[9px] text-green-400 font-mono bg-black/40 p-1.5 rounded mb-1 break-all">{cmd}</code>)}
+                        <div className="bg-black/60 p-3 rounded-lg border border-gray-700 mt-2">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-amber-400 text-[9px] font-bold">🖥️ FFmpeg 명령어 ({actionStates.facetrack.result.ffmpegCommands.length}개 Scene)</p>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(actionStates.facetrack.result.ffmpegCommands.join('\n'));
+                                setToastMsg('✅ FFmpeg 명령어 전체 복사 완료');
+                                setTimeout(() => setToastMsg(null), 2000);
+                              }}
+                              className="text-[8px] text-amber-500 hover:text-amber-300 bg-amber-900/30 hover:bg-amber-800/40 border border-amber-700/40 px-2 py-0.5 rounded transition-all"
+                            >📋 전체 복사</button>
+                          </div>
+                          {actionStates.facetrack.result.ffmpegCommands.map((cmd, i) => (
+                            <div key={i} className="flex items-start gap-2 mb-1.5 group">
+                              <code className="flex-1 text-[9px] text-green-400 font-mono bg-black/50 p-2 rounded border border-gray-800 break-all leading-relaxed select-all">{cmd}</code>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(cmd);
+                                  setToastMsg(`✅ Scene ${i + 1} 명령어 복사 완료`);
+                                  setTimeout(() => setToastMsg(null), 2000);
+                                }}
+                                className="shrink-0 mt-0.5 text-[9px] text-gray-500 hover:text-green-400 bg-gray-800/80 hover:bg-green-900/30 border border-gray-700 hover:border-green-600/50 px-2 py-1.5 rounded transition-all opacity-60 group-hover:opacity-100"
+                                title={`Scene ${i + 1} 복사`}
+                              >📋</button>
+                            </div>
+                          ))}
+                          <p className="text-[8px] text-gray-600 mt-1">💡 각 명령어의 📋 버튼을 클릭하거나, 전체 복사 후 터미널에서 실행하세요.</p>
                         </div>
                       )}
                       {actionStates.facetrack.result.tips?.map((t,i) => <p key={i} className="text-gray-500 text-[9px]">💡 {t}</p>)}

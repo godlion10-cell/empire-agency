@@ -38,7 +38,7 @@ export async function POST(request) {
       : '전체 영상을 30초 단위로 분석해주세요.';
 
     const result = await genAI.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       contents: [{ parts: [{ text: `당신은 전문 영상 편집자이자 Face-Tracking AI입니다.
 이 YouTube 영상을 실제로 분석하여 16:9 원본을 9:16 세로형 숏폼으로 변환하기 위한 정확한 크롭 가이드를 생성하세요.
 

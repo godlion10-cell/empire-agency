@@ -6,18 +6,32 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(req) {
   try {
-    const { clientName, usps, targetAudience, engine = 'recreate' } = await req.json();
+    const { clientName, usps, targetAudience, engine = 'recreate', rawText, targetType } = await req.json();
 
-    if (!clientName || !usps || usps.length === 0) {
+    // ─── 브릿지 모드: rawText가 있으면 대본 기반 카피 생성 ───
+    const isRawMode = !!rawText;
+    const effectiveClient = clientName || '브릿지 프로젝트';
+    const effectiveUsps = usps?.length > 0 ? usps : (isRawMode ? ['(대본 분석 기반)'] : []);
+
+    if (!isRawMode && (!clientName || !usps || usps.length === 0)) {
       return NextResponse.json({ success: false, error: '클라이언트명과 USP를 입력해주세요.' }, { status: 400 });
     }
 
+    if (isRawMode) {
+      console.log(`🔗 [AD-COPY] 브릿지 모드 수신: rawText ${rawText.length}자, targetType: ${targetType}`);
+    }
+
     // 엔진별 시스템 프롬프트 조합
-    const systemPrompt = buildSystemPrompt(engine, { clientName, usps, targetAudience });
+    const systemPrompt = buildSystemPrompt(engine, { clientName: effectiveClient, usps: effectiveUsps, targetAudience });
+
+    // rawText가 있으면 대본 컨텍스트를 포함한 강화 프롬프트
+    const transcriptContext = isRawMode
+      ? `\n\n[원본 영상 대본 (자막 데이터)]\n${rawText.substring(0, 4000)}\n\n위 대본의 핵심 메시지를 분석하여 `
+      : '';
 
     const userPrompt = engine === 'recreate'
-      ? `Client: ${clientName}
-Key Selling Points: ${usps.join(', ')}
+      ? `${transcriptContext}Client: ${effectiveClient}
+Key Selling Points: ${effectiveUsps.join(', ')}
 Target Audience: ${targetAudience || '30-50대 고소득 전문직'}
 
 Create 3 variations of 15-second short-form ad scripts.
@@ -26,15 +40,15 @@ ALL text in KOREAN (한국어), 해요체 only.
 Format: { "copies": [{ "headline": "헤드라인", "body": "본문 2-3문장 (15초)", "cta": "CTA" }] }
 Return ONLY JSON.`
       : engine === 'commerce'
-      ? `Product/URL: ${clientName}
-Features: ${usps.join(', ')}
+      ? `${transcriptContext}Product/URL: ${effectiveClient}
+Features: ${effectiveUsps.join(', ')}
 Target: ${targetAudience || '20-40대 온라인 구매자'}
 
 Analyze and create a commerce ad package.
 ALL text in KOREAN (한국어), 해요체 only.
 Format: { "copies": [{ "headline": "헤드라인", "body": "본문", "cta": "CTA" }], "visual_cuts": [{ "cut": 1, "mj_prompt": "" }] }
 Return ONLY JSON.`
-      : `Source: ${clientName}
+      : `${transcriptContext}Source: ${effectiveClient}
 Analyze and extract highlights for short-form content.
 ALL in KOREAN.
 Format: { "copies": [{ "headline": "하이라이트 제목", "body": "요약", "cta": "CTA" }] }

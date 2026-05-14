@@ -21,7 +21,7 @@ export async function POST(request) {
 
     // Gemini로 MJ 프롬프트를 한국어+영어 하이브리드로 정제
     const result = await genAI.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       contents: [{ parts: [{ text: `당신은 Midjourney 프롬프트 전문가입니다.
 다음 프롬프트를 분석하고, 더 강력한 MJ 프롬프트 3종 변형을 생성하세요.
 

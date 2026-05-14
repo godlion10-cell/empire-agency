@@ -28,11 +28,19 @@ export async function POST(req) {
     // 실제 3중 폴백 엔진 가동
     const result = await fetchTranscript(url);
 
-    // 더미 데이터 감지 — fallback 소스이면서 1개 세그먼트이면 실패로 간주
-    if (result.source === 'fallback' && result.segment_count <= 1) {
+    // 더미 데이터 감지 — fallback 소스이거나, 1개 세그먼트에 더미 텍스트가 포함된 경우 실패로 간주
+    const isDummy = (result.source === 'fallback') || 
+      (result.segment_count <= 1 && /수동 확인|분석 대기|추출 실패|전사 실패|자막 자동 추출 실패/.test(result.full_text));
+    
+    if (isDummy) {
+      console.error(`❌ [SUBTITLE-GEN] 더미 데이터 감지 — source: ${result.source}, segments: ${result.segment_count}`);
       return NextResponse.json({
         success: false,
-        error: '자막 추출 실패: 이 영상에서 자막을 추출할 수 없습니다. YouTube에서 자막이 제공되지 않거나 AI 분석이 차단되었습니다.',
+        error: `자막 추출 실패: 3단계 엔진 모두 실패했습니다.\n` +
+               `• Level 1 (YouTube API): 서버 IP 차단\n` +
+               `• Level 2 (웹 스크래핑): 자막 트랙 없음\n` +
+               `• Level 3 (Gemini AI): ${result.source === 'fallback' ? 'API 키 만료 또는 연결 실패' : '유효한 결과 없음'}\n\n` +
+               `→ Google AI Studio에서 GEMINI_API_KEY 갱신이 필요합니다.`,
       }, { status: 422 });
     }
 
