@@ -1029,69 +1029,112 @@ export default function EmpireConsole() {
               </div>
             </div>
 
-            {/* Global Finder 결과 */}
-            {globalResult && (
-              <div className="mt-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-violet-400 text-xs font-bold">🌍 Global Adaptation 결과</h4>
+            {/* ═══ Global DNA 추출 결과 패널 ═══ */}
+            {globalResult && !globalProcessing && !absorbingId && (
+              <div className="mt-8 p-6 bg-gray-900 border border-purple-500 rounded-xl shadow-2xl">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl text-white font-bold">🔥 글로벌 DNA 심층 추출 완료</h2>
                   <button
-                    onClick={() => { navigator.clipboard.writeText(JSON.stringify(globalResult, null, 2)); setToastMsg('✅ Global 결과 JSON 복사 완료'); setTimeout(() => setToastMsg(null), 2000); }}
-                    className="text-[9px] text-violet-500 hover:text-violet-400"
-                  >📋 JSON 복사</button>
+                    onClick={() => { navigator.clipboard.writeText(JSON.stringify(globalResult, null, 2)); setToastMsg('✅ 전체 JSON 복사 완료'); setTimeout(() => setToastMsg(null), 2000); }}
+                    className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs font-bold rounded transition-colors"
+                  >📋 JSON 전체 복사</button>
                 </div>
-                {/* 언어 감지 + 요약 */}
-                <div className="bg-black/40 p-3 rounded-lg border border-violet-900/30 text-[10px]">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="px-2 py-0.5 rounded bg-violet-900/50 text-violet-300 font-bold text-[9px]">{globalResult.detected_language}</span>
-                    <span className="text-gray-500">→</span>
-                    <span className="px-2 py-0.5 rounded bg-green-900/50 text-green-300 font-bold text-[9px]">KR 🇰🇷</span>
-                    {globalResult.viral_potential && <span className={`ml-auto px-2 py-0.5 rounded font-bold text-[9px] ${globalResult.viral_potential >= 8 ? 'bg-red-900/50 text-red-300' : globalResult.viral_potential >= 6 ? 'bg-amber-900/50 text-amber-300' : 'bg-gray-700 text-gray-400'}`}>🔥 Viral {globalResult.viral_potential}/10</span>}
-                  </div>
-                  <p className="text-gray-400 italic">{globalResult.original_summary}</p>
+
+                {/* 언어 감지 + Viral 배지 */}
+                <div className="flex items-center gap-3 mb-5 p-3 bg-black/30 rounded-lg border border-gray-800">
+                  <span className="px-3 py-1 rounded-lg bg-violet-900/50 text-violet-300 font-bold text-sm">{globalResult.detected_language}</span>
+                  <span className="text-gray-500 text-lg">→</span>
+                  <span className="px-3 py-1 rounded-lg bg-green-900/50 text-green-300 font-bold text-sm">KR 🇰🇷</span>
+                  {globalResult.viral_potential && (
+                    <span className={`ml-auto px-3 py-1 rounded-lg font-bold text-sm ${globalResult.viral_potential >= 8 ? 'bg-red-900/50 text-red-300' : globalResult.viral_potential >= 6 ? 'bg-amber-900/50 text-amber-300' : 'bg-gray-700 text-gray-400'}`}>
+                      🔥 Viral {globalResult.viral_potential}/10
+                    </span>
+                  )}
                 </div>
-                {/* 한국형 적응 결과 */}
+
+                {/* 원본 요약 */}
+                {globalResult.original_summary && (
+                  <p className="text-gray-400 italic text-sm mb-5 px-1">{globalResult.original_summary}</p>
+                )}
+
+                {/* 한국형 제목 + Hook */}
                 {globalResult.korean_adaptation && (
-                  <div className="space-y-2">
-                    <div className="bg-black/40 p-3 rounded-lg border border-violet-900/30">
-                      <p className="text-white font-bold text-[11px]">{globalResult.korean_adaptation.title}</p>
-                      <p className="text-violet-300 text-[10px] mt-1">🎯 Hook: {globalResult.korean_adaptation.hook}</p>
+                  <div className="mb-5 p-4 bg-black/30 rounded-lg border border-violet-900/30">
+                    <p className="text-white font-bold text-lg">{globalResult.korean_adaptation.title}</p>
+                    <p className="text-violet-300 text-sm mt-2">🎯 Hook: {globalResult.korean_adaptation.hook}</p>
+                  </div>
+                )}
+
+                {/* 1. 30초 숏폼 대본 (ElevenLabs 용) */}
+                {globalResult.korean_adaptation?.copies?.[1] && (
+                  <div className="mb-6 p-5 bg-gray-800 rounded-lg">
+                    <div className="flex justify-between items-center mb-3 border-b border-gray-700 pb-2">
+                      <h3 className="text-purple-400 font-bold text-lg">📝 30초 숏폼 대본 (한국어 현지화)</h3>
+                      <button
+                        onClick={() => {
+                          const c = globalResult.korean_adaptation.copies[1];
+                          const script = `${c.headline}\n\n${c.body}\n\n${c.cta}`;
+                          navigator.clipboard.writeText(script);
+                          setToastMsg('✅ 30초 대본 클립보드 복사 완료!'); setTimeout(() => setToastMsg(null), 2000);
+                        }}
+                        className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold rounded transition-colors"
+                      >📋 대본 복사하기</button>
                     </div>
-                    {globalResult.korean_adaptation.copies?.map((copy, i) => (
-                      <div key={i} className="bg-black/30 p-3 rounded-lg border border-gray-800 text-[10px]">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="px-2 py-0.5 rounded bg-violet-900/40 text-violet-300 font-bold text-[8px]">⏱️ {copy.duration}</span>
-                          <button onClick={() => { navigator.clipboard.writeText(`${copy.headline}\n${copy.body}\n${copy.cta}`); setToastMsg(`✅ ${copy.duration} 카피 복사`); setTimeout(() => setToastMsg(null), 2000); }} className="ml-auto text-[8px] text-gray-500 hover:text-violet-400">📋</button>
-                        </div>
-                        <p className="text-white font-bold">{copy.headline}</p>
-                        <p className="text-gray-300 mt-1">{copy.body}</p>
-                        <p className="text-violet-400 mt-1 font-medium">{copy.cta}</p>
+                    <p className="text-white whitespace-pre-wrap leading-relaxed">
+                      <span className="text-purple-300 font-bold">{globalResult.korean_adaptation.copies[1].headline}</span>
+                      {'\n\n'}{globalResult.korean_adaptation.copies[1].body}
+                      {'\n\n'}<span className="text-purple-400 font-medium">{globalResult.korean_adaptation.copies[1].cta}</span>
+                    </p>
+                  </div>
+                )}
+
+                {/* 전체 3종 카피 (15초/30초/60초) */}
+                <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {globalResult.korean_adaptation?.copies?.map((copy, i) => (
+                    <div key={i} className="p-4 bg-gray-800/60 rounded-lg border border-gray-700">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="px-2 py-0.5 rounded bg-violet-900/40 text-violet-300 font-bold text-[10px]">⏱️ {copy.duration}</span>
+                        <button onClick={() => {
+                          navigator.clipboard.writeText(`${copy.headline}\n${copy.body}\n${copy.cta}`);
+                          setToastMsg(`✅ ${copy.duration} 카피 복사`); setTimeout(() => setToastMsg(null), 2000);
+                        }} className="text-[10px] text-gray-500 hover:text-violet-400">📋 복사</button>
                       </div>
-                    ))}
-                  </div>
-                )}
-                {/* 심리 기법 + 키워드 */}
-                {globalResult.psychological_triggers?.length > 0 && (
-                  <div className="flex gap-1 flex-wrap">
-                    <span className="text-[8px] text-gray-600 mr-1">🧠 심리 기법:</span>
-                    {globalResult.psychological_triggers.map((t, i) => <span key={i} className="px-1.5 py-0.5 bg-purple-900/30 text-purple-300 rounded text-[8px]">{t}</span>)}
-                  </div>
-                )}
-                {globalResult.keywords?.length > 0 && (
-                  <div className="flex gap-1 flex-wrap">
-                    <span className="text-[8px] text-gray-600 mr-1">🏷️ 키워드:</span>
-                    {globalResult.keywords.map((k, i) => <span key={i} className="px-1.5 py-0.5 bg-violet-900/30 text-violet-300 rounded text-[8px]">{k}</span>)}
-                  </div>
-                )}
-                {/* MJ Visual Prompt */}
-                {globalResult.korean_adaptation?.visual_prompt && (
-                  <div className="bg-black/50 p-3 rounded-lg border border-violet-900/30">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[8px] text-violet-500 font-bold">🎨 MJ Visual Prompt</span>
-                      <button onClick={() => { navigator.clipboard.writeText(globalResult.korean_adaptation.visual_prompt); setToastMsg('✅ MJ 프롬프트 복사 완료'); setTimeout(() => setToastMsg(null), 2000); }} className="text-[8px] text-gray-500 hover:text-violet-400">📋 복사</button>
+                      <p className="text-white font-bold text-sm">{copy.headline}</p>
+                      <p className="text-gray-300 text-[11px] mt-1.5 leading-relaxed">{copy.body}</p>
+                      <p className="text-violet-400 text-[11px] mt-1.5 font-medium">{copy.cta}</p>
                     </div>
-                    <p className="text-[9px] text-green-400 font-mono leading-relaxed select-all">{globalResult.korean_adaptation.visual_prompt}</p>
+                  ))}
+                </div>
+
+                {/* 2. 비주얼 프롬프트 (Midjourney / Luma 용) */}
+                {globalResult.korean_adaptation?.visual_prompt && (
+                  <div className="mb-6 p-5 bg-blue-900/20 border border-blue-500 rounded-lg">
+                    <div className="flex justify-between items-center mb-3 border-b border-blue-800/50 pb-2">
+                      <h3 className="text-blue-400 font-bold text-lg">🎨 비주얼 프롬프트 (시네마틱)</h3>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(globalResult.korean_adaptation.visual_prompt); setToastMsg('✅ MJ 프롬프트 복사 완료!'); setTimeout(() => setToastMsg(null), 2000); }}
+                        className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded transition-colors"
+                      >📋 프롬프트 복사하기</button>
+                    </div>
+                    <p className="text-blue-200 font-mono text-sm break-all leading-relaxed select-all">{globalResult.korean_adaptation.visual_prompt}</p>
                   </div>
                 )}
+
+                {/* 심리 기법 + 키워드 */}
+                <div className="flex flex-col gap-2">
+                  {globalResult.psychological_triggers?.length > 0 && (
+                    <div className="flex gap-1.5 flex-wrap items-center">
+                      <span className="text-[10px] text-gray-500 mr-1">🧠 심리 기법:</span>
+                      {globalResult.psychological_triggers.map((t, i) => <span key={i} className="px-2 py-0.5 bg-purple-900/30 text-purple-300 rounded text-[10px]">{t}</span>)}
+                    </div>
+                  )}
+                  {globalResult.keywords?.length > 0 && (
+                    <div className="flex gap-1.5 flex-wrap items-center">
+                      <span className="text-[10px] text-gray-500 mr-1">🏷️ 키워드:</span>
+                      {globalResult.keywords.map((k, i) => <span key={i} className="px-2 py-0.5 bg-violet-900/30 text-violet-300 rounded text-[10px]">{k}</span>)}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
