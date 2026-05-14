@@ -76,6 +76,18 @@ export default function EmpireConsole() {
   const [voicesLoading, setVoicesLoading] = useState(false);
 
   // 대시보드 로드 시 보이스 목록 자동 불러오기
+
+  // ★ 유틸: 조회수 포맷 (1500000 → 150만)
+  const formatViews = (views) => {
+    if (!views) return '0';
+    return new Intl.NumberFormat('ko-KR', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(views));
+  };
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const d = new Date(dateString);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
   useEffect(() => {
     const fetchVoices = async () => {
       setVoicesLoading(true);
@@ -965,28 +977,33 @@ export default function EmpireConsole() {
                       <p className="text-violet-400 text-xs font-bold">📡 {radarVideos.length}개 영상 발견 — 클릭하여 DNA 추출</p>
                       <span className="text-[9px] text-gray-600">{radarKeyword} · {radarRegion}</span>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 max-h-[600px] overflow-y-auto pr-1">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 max-h-[700px] overflow-y-auto pr-1">
                       {radarVideos.map((v) => (
-                        <div key={v.videoId} className={`bg-black/40 rounded-lg border overflow-hidden transition-all hover:border-violet-600 group ${
-                          absorbingId === v.videoId ? 'border-violet-500 ring-1 ring-violet-500/30' : 'border-gray-800'
+                        <div key={v.videoId} className={`bg-gray-800/60 rounded-xl border overflow-hidden transition-all hover:border-violet-500 ${
+                          absorbingId === v.videoId ? 'border-violet-500 ring-1 ring-violet-500/30' : 'border-gray-700'
                         }`}>
-                          <div className="relative">
-                            <img src={v.thumbnail} alt={v.title} className="w-full aspect-video object-cover" loading="lazy" />
+                          <img src={v.thumbnail} alt={v.title} className="w-full aspect-video object-cover" loading="lazy" />
+                          <div className="p-3">
+                            <p className="text-[10px] text-purple-400 font-bold mb-1">🌐 글로벌 콘텐츠</p>
+                            <h3 className="text-[11px] text-white font-semibold leading-tight line-clamp-2 mb-1.5">{v.title}</h3>
+                            <p className="text-[9px] text-gray-500 truncate">📺 {v.channel}</p>
+                            <div className="flex justify-between items-center text-[9px] text-gray-400 mt-2 border-t border-gray-700 pt-2">
+                              <span className="font-bold">👁️ {formatViews(v.viewCount)}회</span>
+                              <span>📅 {formatDate(v.publishedAt)}</span>
+                            </div>
                             <button
                               disabled={!!absorbingId}
                               onClick={() => handleAbsorbDNA(v.videoId)}
-                              className={`absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ${
-                                absorbingId === v.videoId ? 'opacity-100 bg-violet-900/80' : 'bg-black/60 hover:bg-violet-900/70'
+                              className={`w-full mt-2.5 py-2 rounded-lg text-[10px] font-bold transition-all ${
+                                absorbingId === v.videoId
+                                  ? 'bg-violet-700 text-violet-300 animate-pulse'
+                                  : absorbingId
+                                  ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                  : 'bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-900/30'
                               }`}
                             >
-                              <span className="text-white text-xs font-bold px-3 py-1.5 rounded-lg bg-violet-600/80 backdrop-blur">
-                                {absorbingId === v.videoId ? '⚡ 추출 중...' : '🧬 Absorb DNA'}
-                              </span>
+                              {absorbingId === v.videoId ? '⚡ DNA 추출 중...' : '🧬 Absorb DNA'}
                             </button>
-                          </div>
-                          <div className="p-2">
-                            <p className="text-[10px] text-white font-medium leading-tight line-clamp-2">{v.title}</p>
-                            <p className="text-[8px] text-gray-500 mt-1 truncate">{v.channel}</p>
                           </div>
                         </div>
                       ))}
