@@ -2,14 +2,11 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import EnhancedSidebar from './components/EnhancedSidebar';
 
 export default function EmpireConsole() {
   const router = useRouter();
   const [isLocked, setIsLocked] = useState(true);
   const [showShadowRoom, setShowShadowRoom] = useState(false);
-  const [showProjects, setShowProjects] = useState(false);
-  const [projects, setProjects] = useState([]);
 
   // 마스터 입력 상태
   const [masterInput, setMasterInput] = useState("");
@@ -104,20 +101,6 @@ export default function EmpireConsole() {
     const d = new Date(dateString);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
-
-  // ★ 프로젝트 목록 자동 로드 (마운트 시)
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const res = await fetch('/api/projects');
-        const data = await res.json();
-        if (data.success) setProjects(data.projects || []);
-      } catch (e) {
-        console.log('⚠️ 프로젝트 로드 실패:', e.message);
-      }
-    };
-    fetchProjects();
-  }, []);
 
   useEffect(() => {
     const fetchVoices = async () => {
@@ -759,7 +742,7 @@ export default function EmpireConsole() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-gray-100 p-4 md:p-6 font-sans">
+    <div className="min-h-full bg-black text-gray-100 p-4 md:p-6 font-sans">
       {/* HEADER: 통합 컨트롤 바 */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-800 pb-4 mb-8 gap-4">
         <div className="flex items-center gap-4">
@@ -776,11 +759,6 @@ export default function EmpireConsole() {
           </span>
           {/* 쉐도우 룸 스위치 */}
           <button
-            onClick={async () => { try { const r = await fetch('/api/projects'); const d = await r.json(); setProjects(d.projects || []); } catch {} setShowProjects(true); }}
-            className="px-4 py-1.5 rounded-full text-xs font-bold transition-all border bg-blue-900/40 border-blue-700 text-blue-300 hover:bg-blue-800/60">
-            📂 Projects
-          </button>
-          <button
             onClick={handleShadowToggle}
             className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
               showShadowRoom
@@ -792,21 +770,6 @@ export default function EmpireConsole() {
           </button>
         </div>
       </header>
-
-      {/* ═══ Projects Sidebar Panel ═══ */}
-      {showProjects && (
-        <div className="fixed inset-0 z-[9999] flex bg-black/60 backdrop-blur-sm" onClick={() => setShowProjects(false)}>
-          <div onClick={e => e.stopPropagation()}>
-            <EnhancedSidebar
-              projects={projects}
-              onSelect={(id) => router.push(`/console/${id}`)}
-              onNew={async () => { const name = prompt('프로젝트 이름:'); if (name) { const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: name }) }); const data = await res.json(); if (data.success) router.push(`/console/${data.project.id}`); } }}
-              onDelete={async (id) => { if (confirm('삭제할까요?')) { await fetch(`/api/projects/${id}`, { method: 'DELETE' }); const r = await fetch('/api/projects'); const d = await r.json(); setProjects(d.projects || []); } }}
-            />
-          </div>
-          <div className="flex-1" />
-        </div>
-      )}
 
       {/* ═══ Full-screen 로딩 오버레이 (Global Engine) ═══ */}
       {(globalProcessing || absorbingId || radarScanning || kwScanning) && (
