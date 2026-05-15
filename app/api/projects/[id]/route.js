@@ -27,7 +27,7 @@ export async function PATCH(req, { params }) {
   try {
     const { id } = await params;
     const body = await req.json();
-    const updates = {};
+    const updates = { updatedAt: new Date().toISOString() };
     if (body.title !== undefined) updates.title = body.title;
     if (body.status !== undefined) updates.status = body.status;
     if (body.payload !== undefined) updates.payload = body.payload;

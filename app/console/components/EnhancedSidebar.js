@@ -1,6 +1,18 @@
 'use client';
 import { useState } from 'react';
 
+const formatKST = (isoString) => {
+  if (!isoString) return '';
+  return new Date(isoString).toLocaleString('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+};
+
 const MODEL_ICONS = {
   'Gemini 2.5 Flash': { icon: '🧠', color: 'text-blue-400 bg-blue-900/30 border-blue-800/40' },
   'Gemini 1.5 Pro': { icon: '🧬', color: 'text-cyan-400 bg-cyan-900/30 border-cyan-800/40' },
@@ -163,7 +175,7 @@ export default function EnhancedSidebar({ projects = [], onSelect, onNew, onDele
               {/* Status + Date */}
               <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-800/50">
                 <span className={`text-[8px] font-medium ${status.color}`}>{status.label}</span>
-                <span className="text-[8px] text-gray-700">{new Date(p.updatedAt || p.createdAt).toLocaleDateString('ko-KR')}</span>
+                <span className="text-[8px] text-gray-700">{formatKST(p.updatedAt || p.createdAt)}</span>
               </div>
             </div>
           );

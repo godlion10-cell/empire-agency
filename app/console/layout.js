@@ -11,6 +11,19 @@ const STATUS_DOT = {
   'COMPLETE': 'bg-emerald-400',
 };
 
+/** UTC → KST 변환 + 읽기 쉬운 포맷 */
+const formatKST = (isoString) => {
+  if (!isoString) return '';
+  return new Date(isoString).toLocaleString('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+};
+
 export default function ConsoleLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -165,7 +178,7 @@ export default function ConsoleLayout({ children }) {
                     )}
                     <div className="flex justify-between items-center mt-1.5 text-[7px] text-gray-700">
                       <span>{p.status}</span>
-                      <span>{new Date(p.updatedAt || p.createdAt).toLocaleDateString('ko-KR')}</span>
+                      <span>{formatKST(p.updatedAt || p.createdAt)}</span>
                     </div>
                   </>
                 )}
