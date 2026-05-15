@@ -53,6 +53,7 @@ export default function EmpireConsole() {
   const [radarVideos, setRadarVideos] = useState([]);
   const [radarScanning, setRadarScanning] = useState(false);
   const [absorbingId, setAbsorbingId] = useState(null); // 현재 DNA 추출 중인 videoId
+  const [absorbedVideoTitle, setAbsorbedVideoTitle] = useState(''); // 추출된 영상 제목
 
   // ★ Golden Keyword Discovery 상태
   const [kwSeed, setKwSeed] = useState('');
@@ -218,6 +219,9 @@ export default function EmpireConsole() {
     if (absorbingId) return;
     setAbsorbingId(videoId);
     setGlobalResult(null);
+    // 레이더 영상 목록에서 제목 찾기
+    const matchedVideo = radarVideos.find(v => v.videoId === videoId);
+    setAbsorbedVideoTitle(matchedVideo?.title || '');
     try {
       const formData = new FormData();
       formData.append('type', 'URL');
@@ -1095,6 +1099,17 @@ export default function EmpireConsole() {
                 {/* 상단 헤더 및 핵심 훅(Hook) */}
                 <div className="mb-6">
                   <h2 className="text-2xl text-white font-bold mb-2">🔥 글로벌 DNA 심층 추출 완료</h2>
+                  {/* 소스 영상 정보 */}
+                  {(absorbedVideoTitle || globalResult.source?.videoId) && (
+                    <div className="flex items-center gap-2 flex-wrap mb-3 p-2.5 bg-black/40 rounded-lg border border-gray-800">
+                      <span className="text-[9px] text-gray-500">🎬 분석 소스:</span>
+                      {absorbedVideoTitle && <span className="text-[10px] text-white font-semibold truncate max-w-[400px]">{absorbedVideoTitle}</span>}
+                      {globalResult.source?.videoId && <a href={`https://youtube.com/watch?v=${globalResult.source.videoId}`} target="_blank" rel="noopener noreferrer" className="text-[9px] text-violet-400 hover:text-violet-300 underline">{globalResult.source.videoId}</a>}
+                      {globalResult.source?.extractionEngine && <span className="text-[8px] text-gray-600 bg-gray-800 px-1.5 py-0.5 rounded">via {globalResult.source.extractionEngine}</span>}
+                      {globalResult.source?.duration && <span className="text-[8px] text-gray-600">{Math.round(globalResult.source.duration / 60)}분</span>}
+                      {globalResult.detected_language && <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-violet-900/40 text-violet-300">{globalResult.detected_language} → KR</span>}
+                    </div>
+                  )}
                   <p className="text-gray-400 italic">" {globalResult.korean_adaptation?.hook || '분석된 후킹 포인트가 여기에 표시됩니다.'} "</p>
                 </div>
 
