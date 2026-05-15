@@ -1113,6 +1113,28 @@ export default function EmpireConsole() {
                   <p className="text-gray-400 italic">" {globalResult.korean_adaptation?.hook || '분석된 후킹 포인트가 여기에 표시됩니다.'} "</p>
                 </div>
 
+                {/* 메인 토픽 + 스폰서 쉴드 */}
+                {(globalResult.main_topic || globalResult.sponsor_segments_ignored?.length > 0) && (
+                  <div className="mb-5 p-3 bg-black/30 rounded-lg border border-gray-800">
+                    {globalResult.main_topic && (
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[9px] text-emerald-500 font-bold">🎯 메인 토픽:</span>
+                        <span className="text-[11px] text-white font-semibold">{globalResult.main_topic}</span>
+                      </div>
+                    )}
+                    {globalResult.sponsor_segments_ignored?.length > 0 && (
+                      <div className="flex items-start gap-2">
+                        <span className="text-[9px] text-red-400 font-bold shrink-0">🛡️ 스폰서 쉴드:</span>
+                        <div className="flex gap-1 flex-wrap">
+                          {globalResult.sponsor_segments_ignored.map((seg, i) => (
+                            <span key={i} className="text-[9px] text-gray-500 bg-red-900/15 px-1.5 py-0.5 rounded border border-red-900/20 line-through">{seg}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* 3종 대본 (15초 / 30초 / 60초) 나열 구역 */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                   {/* 15초 숏폼 */}

@@ -99,16 +99,30 @@ Analyze the following source text (which could be in English, Chinese, Japanese,
 [Source DNA]
 ${rawText.substring(0, 5000)}
 
+[🛡️ SPONSOR SHIELD — CRITICAL PRE-PROCESSING STEP]
+Before ANY analysis, you MUST scan the entire transcript and IDENTIFY then IGNORE all of the following:
+- **Sponsor reads / Mid-roll ads**: "This video is sponsored by...", "Thanks to [Brand] for sponsoring...", "Use code [X] for..."
+- **PPL (Product Placement)**: Segments where the creator suddenly pivots to promote an unrelated product or service
+- **Affiliate pitches**: "Check the link in description", "Use my referral code", "Sign up with my link"
+- **Common sponsor brands to filter**: NordVPN, BetterHelp, Squarespace, Skillshare, Audible, Raid Shadow Legends, HelloFresh, ExpressVPN, Surfshark, Dollar Shave Club, Manscaped, AG1, Athletic Greens, 쿠팡, 닥터바리스타, 뮤직카우, 토스, 리디, 밀리의서재
+- **Self-promotion segments**: "Subscribe to my channel", "Hit the bell icon", "Join my Patreon/membership"
+- **Outro/filler segments**: Generic sign-offs, "See you in the next video", end-screen callouts
+
+🔴 ABSOLUTE RULE: Extract DNA ONLY from the MAIN CONTENT — the original topic the creator is actually discussing.
+If 70%+ of the transcript is sponsor content, still find the core topic from the remaining 30%.
+The ad scripts you generate must be about the VIDEO'S MAIN TOPIC, never about the sponsors.
+
 [Mission]
 1. DETECT the original language.
-2. EXTRACT the core selling logic, emotional triggers, and key claims.
-3. TRANSLATE and LOCALIZE into perfect Korean for the 2030 demographic (MZ세대).
-4. Apply psychological triggers:
+2. IDENTIFY the video's TRUE MAIN TOPIC (ignore all sponsor/PPL segments).
+3. EXTRACT the core selling logic, emotional triggers, and key claims from the MAIN CONTENT ONLY.
+4. TRANSLATE and LOCALIZE into perfect Korean for the 2030 demographic (MZ세대).
+5. Apply psychological triggers:
    - "Pain Avoidance" (공포/손실 회피): 이걸 안 하면 뒤처진다는 느낌
    - "Growth Desire" (성장/기회 욕구): 이걸 하면 더 나은 내가 된다는 확신
    - "Social Proof" (사회적 증거): 다른 사람들도 이미 하고 있다는 안심
-5. Generate SHORT-FORM ad scripts in 3 durations (15초/30초/60초).
-6. Create a Midjourney visual prompt for the thumbnail/poster.
+6. Generate SHORT-FORM ad scripts in 3 durations (15초/30초/60초) about the MAIN TOPIC.
+7. Create a Midjourney visual prompt for the thumbnail/poster matching the MAIN TOPIC.
 
 [Tone Rules]
 - MUST use natural Korean 해요체 (~기회예요, ~만나보세요, ~시작해보세요)
@@ -118,7 +132,9 @@ ${rawText.substring(0, 5000)}
 [Output Format — RETURN ONLY VALID JSON]
 {
   "detected_language": "EN|CN|JP|KR|etc",
-  "original_summary": "원본 핵심 메시지 1줄 요약 (원어 그대로)",
+  "main_topic": "영상의 실제 핵심 주제 (스폰서 제외, 1줄)",
+  "original_summary": "원본 핵심 메시지 1줄 요약 (원어 그대로, 스폰서 제외)",
+  "sponsor_segments_ignored": ["무시한 스폰서/PPL 세그먼트 요약 1", "세그먼트 2"],
   "korean_adaptation": {
     "title": "한국형 제목 (궁금증 유발, 15자 이내)",
     "hook": "첫 1초 훅 — 스크롤을 멈추게 하는 한 마디",
