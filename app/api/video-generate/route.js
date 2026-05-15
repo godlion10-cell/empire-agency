@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { notifyStageComplete, notifyVideoComplete } from '@/lib/telegram-notify';
 
 /**
  * POST /api/video-generate
@@ -56,6 +57,8 @@ export async function POST(req) {
 
         if (runwayRes.ok) {
           const data = JSON.parse(resText);
+          // 📬 렌더링 시작 알림
+          notifyStageComplete(prompt.substring(0, 30), 'VIDEO', `Runway ${mode} 시작 — ID: ${data.id}`).catch(() => {});
           return NextResponse.json({
             success: true,
             data: {
@@ -121,6 +124,8 @@ export async function POST(req) {
 
         if (lumaRes.ok) {
           const data = JSON.parse(resText);
+          // 📬 렌더링 시작 알림
+          notifyStageComplete(prompt.substring(0, 30), 'VIDEO', `Luma ${mode} 시작 — ID: ${data.id}`).catch(() => {});
           return NextResponse.json({
             success: true,
             data: {
