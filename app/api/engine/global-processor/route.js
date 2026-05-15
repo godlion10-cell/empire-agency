@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { GoogleGenAI } from '@google/genai';
 import { fetchTranscript } from '@/lib/youtube-transcript';
+import { buildAnalysisPayload, segmentsToPromptText, extractKeyMoments } from '@/lib/analyzer-utils';
 
 export const maxDuration = 60;
 
@@ -95,8 +96,35 @@ export async function POST(req) {
     }
 
     // ═══════════════════════════════════════════
+    // Stage 1.5: Adaptive Time-Chunking
+    // ═══════════════════════════════════════════
+    let adaptivePayload = null;
+    if (inputType === 'URL' && sourceInfo.duration) {
+      // URL 모드에서는 자막 세그먼트와 duration 정보를 활용
+      const transcriptForChunking = {
+        segments: rawText.split('\n').filter(l => l.trim()).map((line, i) => {
+          const timeMatch = line.match(/^\[(\d+)초\]\s*(.+)/);
+          return timeMatch
+            ? { start: parseInt(timeMatch[1]), end: parseInt(timeMatch[1]) + 3, text: timeMatch[2] }
+            : { start: i * 3, end: (i + 1) * 3, text: line };
+        }),
+        duration_sec: sourceInfo.duration || 0,
+        video_id: sourceInfo.videoId || '',
+        source: sourceInfo.extractionEngine || 'unknown',
+        full_text: rawText,
+        segment_count: 0,
+      };
+      transcriptForChunking.segment_count = transcriptForChunking.segments.length;
+      adaptivePayload = buildAnalysisPayload(transcriptForChunking);
+      console.log(`📊 [GLOBAL] 적응형 청킹: ${adaptivePayload.config.resolution} (${adaptivePayload.config.interval}s) → ${adaptivePayload.segments.length}개 청크`);
+    }
+
+    // ═══════════════════════════════════════════
     // Stage 2: Global Adaptation (The Brain)
     // ═══════════════════════════════════════════
+    const segmentContext = adaptivePayload
+      ? `\n\n[🔬 Adaptive Segments — ${adaptivePayload.config.resolution} Resolution (${adaptivePayload.config.interval}s interval)]\n${segmentsToPromptText(adaptivePayload.segments).substring(0, 3000)}`
+      : '';
     console.log(`🧠 [GLOBAL] Stage 2: Psychological Adaptation — ${rawText.length}자 투입`);
 
     const prompt = `You are a Master Psychological Marketer, Cultural Adaptation Specialist, and Commerce Fusion Strategist.
@@ -111,7 +139,7 @@ you MUST use the VIDEO TITLE as your primary source for understanding the main t
 Generate all content (pureContent, copies, hybridCommerce) based on the topic indicated by the title.
 ` : ''}
 [Source DNA — Transcript]
-${rawText.substring(0, 5000)}
+${rawText.substring(0, 5000)}${segmentContext}
 ${rawText.length < 200 ? `
 🔴 SPARSE TRANSCRIPT ALERT: This transcript is very short (${rawText.length} chars).
 This likely means the video is visual-heavy (animals, ASMR, music, travel, etc.) with minimal dialogue.
@@ -219,6 +247,13 @@ TRACK 3 — HYBRID COMMERCE (트로이 목마 융합)
         source: sourceInfo,
         originalLength: rawText.length,
         inputType,
+        // ★ 적응형 분석 데이터 (다운스트림 모듈용)
+        adaptive: adaptivePayload ? {
+          config: adaptivePayload.config,
+          segments: adaptivePayload.segments,
+          meta: adaptivePayload.meta,
+          keyMoments: extractKeyMoments(adaptivePayload.segments),
+        } : null,
       },
     });
 

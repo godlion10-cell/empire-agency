@@ -6,6 +6,7 @@
  */
 import { NextResponse } from 'next/server';
 import { fetchTranscript } from '@/lib/youtube-transcript';
+import { buildAnalysisPayload } from '@/lib/analyzer-utils';
 
 export async function POST(req) {
   try {
@@ -19,7 +20,8 @@ export async function POST(req) {
     // ─── Step 1: 유튜브 원본 대본 추출 (2호기 3중 폴백 엔진) ───
     const result = await fetchTranscript(videoUrl);
     const fullText = result.segments.map(s => `[${Math.round(s.start)}초] ${s.text}`).join('\n');
-    console.log(`📄 [BRIDGE] 대본 추출 완료: ${result.segment_count}개 세그먼트, ${result.duration_sec}초`);
+    const adaptive = buildAnalysisPayload(result);
+    console.log(`📄 [BRIDGE] 대본 추출 완료: ${result.segment_count}개 세그먼트, ${result.duration_sec}초 | ${adaptive.config.resolution} (${adaptive.config.interval}s)`);
 
     // ─── Step 2: 엠파이어 에이전시(본진) 두뇌로 대본 전송 ───
     const empireUrl = process.env.EMPIRE_AGENCY_API_URL;
@@ -64,6 +66,11 @@ export async function POST(req) {
       rewrittenCopy: finalResult.data,
       engine: finalResult.engine || 'recreate',
       engineName: finalResult.engineName || '롱폼 재창조',
+      adaptive: {
+        config: adaptive.config,
+        segments: adaptive.segments,
+        meta: adaptive.meta,
+      },
     });
 
   } catch (error) {
