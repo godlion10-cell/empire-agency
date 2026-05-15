@@ -27,10 +27,10 @@ function EmpireConsole() {
   // Master DNA — 전역 대시보드 상태 (모든 하위 버튼이 참조)
   const [masterDNA, setMasterDNA] = useState({
     brand_name: '',
-    main_color: 'gold and dark green',
-    mood: 'luxury premium',
+    main_color: 'dynamic adaptive',
+    mood: 'cinematic premium',
     usp: [],
-    target: '30-50대 고소득 전문직',
+    target: '',
   });
 
   // 구역별 데이터
@@ -729,60 +729,94 @@ function EmpireConsole() {
     setToastMsg('🚀 제국 엔진 점화 중...');
 
     try {
-      // 카피 생성
-      setToastMsg('✍️ AI 카피라이팅 엔진 가동...');
-      setCopyGenerating(true);
-      const copyRes = await fetch('/api/ad-copy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientName: masterInput,
-          usps: [masterInput],
-          targetAudience: '30-50대 고소득 전문직',
-        })
-      });
-      const copyResult = await copyRes.json();
-      if (copyResult.success) {
-        setCopyData(copyResult.data);
-      }
-      setCopyGenerating(false);
-
-      // 렌더링 엔진
-      setToastMsg('🎬 시네마틱 렌더 엔진 가동...');
-      const renderRes = await fetch('/api/render-engine', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: 'M',
-          script: masterInput,
-          videoPrompts: [
-            `Cinematic establishing shot of ${masterInput}, luxury real estate, golden hour, 4K`,
-            `Slow motion detail shot of premium interior design, marble and wood, warm lighting`,
-            `Aerial drone sweeping shot over urban landscape at sunset, volumetric clouds, epic scale`
-          ],
-        })
-      });
-      const renderResult = await renderRes.json();
-      if (renderResult.success) {
-        setVideoCuts(renderResult.data.videos || []);
-        setEngineResult(renderResult.data);
-        if (renderResult.data.videos?.[0]?.url) {
-          setRenderVideo(renderResult.data.videos[0].url);
+      // ═══ Step 0: Auto-Create Project in Supabase ═══
+      let projectId = activeProjectId;
+      if (!projectId) {
+        try {
+          const projRes = await fetch('/api/projects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: masterInput.substring(0, 60),
+              status: 'GEN_SCRIPT',
+              payload: { input: { url: masterInput, type: masterInput.startsWith('http') ? 'URL' : 'TEXT' } },
+            }),
+          });
+          const projData = await projRes.json();
+          if (projData.success && projData.project?.id) {
+            projectId = projData.project.id;
+            // URL 업데이트로 hydration 가능하게
+            router.push(`/console?pid=${projectId}`, { scroll: false });
+            console.log('📦 [IGNITE] 프로젝트 생성:', projectId);
+          }
+        } catch (e) {
+          console.error('프로젝트 생성 실패:', e.message);
         }
       }
 
-      // MJ 프롬프트 4종 — LLM 동적 생성 (하드코딩 제거)
-      setToastMsg('🎨 AI가 키워드 맞춤 비주얼 프롬프트 4종 생성 중...');
+      // ═══ Step 1: DNA Extraction (핵심 파이프라인) ═══
+      const isUrl = masterInput.startsWith('http');
+      setCopyGenerating(true);
+      setToastMsg('🧬 DNA 추출 중...');
+
+      let copyResult;
+      if (isUrl) {
+        // YouTube URL → process-url (3중 폴백 자막 추출 + 글로벌 프로세서)
+        const res = await fetch('/api/process-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoUrl: masterInput }),
+        });
+        copyResult = await res.json();
+      } else {
+        // 텍스트/키워드 → global-processor 직접 호출
+        const res = await fetch('/api/engine/global-processor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            input: masterInput,
+            inputType: 'TEXT',
+          }),
+        });
+        copyResult = await res.json();
+      }
+
+      if (copyResult.success) {
+        const d = copyResult.rewrittenCopy || copyResult.data;
+        setCopyData(d);
+        setEngineResult(d);
+
+        // MasterDNA — LLM 결과에서 동적 추출 (하드코딩 제거)
+        const brandName = d?.videoTitle || d?.title || d?.brand_name || masterInput.substring(0, 30);
+        const extractedUsps = d?.pureContent?.map(c => c.headline || c.copy?.substring(0, 50)).filter(Boolean)
+          || d?.copies?.map(c => c.headline).filter(Boolean)
+          || [brandName];
+        const detectedMood = d?.mood || d?.creative_direction?.visual_mood || 'cinematic premium';
+        const detectedTarget = d?.target_audience || d?.market_position?.target_demo || '콘텐츠 소비자';
+
+        setMasterDNA({
+          brand_name: brandName,
+          main_color: d?.creative_direction?.color_scheme || 'dynamic adaptive',
+          mood: detectedMood,
+          usp: extractedUsps.slice(0, 3),
+          target: detectedTarget,
+        });
+
+        // Adaptive segments 저장
+        if (copyResult.adaptive) {
+          setAdaptiveConfig(copyResult.adaptive.config);
+          setAdaptiveSegments(copyResult.adaptive.segments);
+        } else if (d?.adaptive) {
+          setAdaptiveConfig(d.adaptive.config);
+          setAdaptiveSegments(d.adaptive.segments);
+        }
+      }
+      setCopyGenerating(false);
+
+      // ═══ Step 2: MJ 프롬프트 4종 — LLM 동적 생성 ═══
+      setToastMsg('🎨 비주얼 프롬프트 생성 중...');
       setVisualGenerating(true);
-      const kw = masterInput;
-      const usps = copyResult.success && copyResult.data?.[0] ? [copyResult.data[0].headline, copyResult.data[0].body?.substring(0, 50)] : [kw];
-      setMasterDNA({
-        brand_name: kw,
-        main_color: 'gold and dark green',
-        mood: 'luxury premium cinematic',
-        usp: usps,
-        target: '30-50대 고소득 전문직',
-      });
+      const kw = masterDNA.brand_name || masterInput.substring(0, 30);
 
       try {
         const mjRes = await fetch('/api/engine/mj-prompts', {
@@ -1652,8 +1686,8 @@ function EmpireConsole() {
               { id: 'btn_script', icon: '✍️', label: '숏폼 스크립트', highlight: true, prompt: `Write a viral 15-second Korean ad script in 해요체 for ${masterDNA.brand_name || masterInput}. USP: ${masterDNA.usp.join(', ') || masterInput}. Target: ${masterDNA.target}. Tone: ${masterDNA.mood}. Make it emotional, conversational, hook viewers in 3 seconds.` },
               { id: 'btn_cinematic', icon: '🎬', label: '시네마틱 이미지', prompt: `A breathtaking cinematic shot of ${masterDNA.brand_name || masterInput}, ${masterDNA.mood || 'luxury premium'}, golden hour, volumetric lighting, Unreal Engine 5, photorealistic, 8k, film photography --ar 9:16 --v 6.0` },
               { id: 'btn_voicemix', icon: '🔊', label: '성우 믹싱', prompt: `[ElevenLabs TTS 지시] 보이스: ${selectedVoice || '미선택'}. 감정 톤: 웅장하고 우아한 내레이션. 텍스트: "${masterDNA.usp[0] || masterDNA.brand_name || masterInput}"` },
-              { id: 'btn_runway', icon: '🎥', label: 'Runway 렌더링', prompt: `Cinematic camera push-in shot of ${masterDNA.brand_name || masterInput}, slow motion reveal, luxury atmosphere, golden hour lighting, volumetric fog, premium real estate advertisement, 4K` },
-              { id: 'btn_luma', icon: '✨', label: 'Luma 렌더링', prompt: `Smooth aerial drone shot sweeping over ${masterDNA.brand_name || masterInput}, sunrise, epic scale, cinematic color grading, premium lifestyle, architectural photography in motion` },
+              { id: 'btn_runway', icon: '🎥', label: 'Runway 렌더링', prompt: `Cinematic camera push-in shot of ${masterDNA.brand_name || masterInput}, slow motion reveal, dramatic atmosphere, golden hour lighting, volumetric fog, premium advertisement, 4K` },
+              { id: 'btn_luma', icon: '✨', label: 'Luma 렌더링', prompt: `Smooth aerial drone shot sweeping over ${masterDNA.brand_name || masterInput}, sunrise, epic scale, cinematic color grading, premium visual storytelling, photography in motion` },
             ].map((btn) => (
               <button
                 key={btn.id}
@@ -2478,7 +2512,7 @@ function EmpireConsole() {
               </ul>
             </li>
             <li className="mt-2 pt-2 border-t border-gray-800"><strong className="text-red-400">[긴급] 카피라이팅 TOV 전면 수정:</strong> 제 1구역 15초 숏폼 대본 생성 시, 딱딱한 설명문(<span className="text-red-300 line-through">~한다, ~하십시오</span>) 전면 금지. 시청자에게 직접 말을 거는 <span className="text-white">자연스러운 경어체/해요체</span>(~기회예요, ~어떠세요?, ~확인해 보세요)로 출력. <span className="text-emerald-400">✅ 적용됨</span>
-              <div className="mt-1 bg-black/30 p-2 rounded text-[10px] text-gray-500 italic">참고 대본: &ldquo;부산에 다시없을 기회예요. 18만 평 사상공원을 내 집 앞마당처럼 누리는 진정한 하이엔드 라이프!&rdquo;</div>
+              <div className="mt-1 bg-black/30 p-2 rounded text-[10px] text-gray-500 italic">참고: 시청자에게 직접 말을 거는 자연스러운 경어체/해요체 (~기회예요, ~어떠세요?, ~확인해 보세요)</div>
             </li>
             <li className="mt-2 pt-2 border-t border-gray-800"><strong className="text-purple-400">[자막 자동화]:</strong> Gemini 대본 생성 시 타임코드 JSON 포함 → <span className="text-cyan-400">/api/subtitle</span> SRT 자동 변환 → FFmpeg <span className="text-white">subtitles 필터</span> 하드코딩. 캡컷 불필요. <span className="text-emerald-400">✅ 적용됨</span>
               <div className="mt-1 bg-black/30 p-2 rounded text-[10px] text-gray-500">스타일: Malgun Gothic / 22pt / 흰색+검정 테두리 / 하단 중앙 고정</div>
