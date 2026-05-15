@@ -630,8 +630,8 @@ export default function EmpireConsole() {
         }
       }
 
-      // MJ 프롬프트 4종 자동 생성
-      setToastMsg('🎨 비주얼 프롬프트 4종 생성...');
+      // MJ 프롬프트 4종 — LLM 동적 생성 (하드코딩 제거)
+      setToastMsg('🎨 AI가 키워드 맞춤 비주얼 프롬프트 4종 생성 중...');
       setVisualGenerating(true);
       const kw = masterInput;
       const usps = copyResult.success && copyResult.data?.[0] ? [copyResult.data[0].headline, copyResult.data[0].body?.substring(0, 50)] : [kw];
@@ -643,12 +643,37 @@ export default function EmpireConsole() {
         target: '30-50대 고소득 전문직',
       });
 
-      setMjPrompts({
-        poster: `A breathtaking wide aerial shot of ${kw} luxury apartment complex surrounded by a massive lush green park at sunrise, modern architecture, cinematic lighting, photorealistic, 8k, architectural photography --ar 9:16 --v 6.0`,
-        logo: `A minimalist luxury real estate logo for ${kw}, high-end apartment emblem, geometric, gold and dark green, flat vector design, clean white background, premium brand identity --no text, typography, letters --v 6.0`,
-        sns: `A successful young Korean professional relaxing on a luxury ${kw} apartment terrace with a cup of coffee, looking at the park view, warm morning light, premium lifestyle, photorealistic, 8k, advertisement style --ar 1:1 --v 6.0`,
-        card: `High-end luxury ${kw} apartment entrance signage mockup, dark marble stone texture with metallic gold accents, minimal, clean, cinematic lighting, photorealistic, 8k --ar 16:9 --v 6.0`,
-      });
+      try {
+        const mjRes = await fetch('/api/engine/mj-prompts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            keyword: kw,
+            context: copyResult.data?.[0]?.headline || '',
+            mood: 'premium cinematic luxury',
+          }),
+        });
+        const mjData = await mjRes.json();
+        if (mjData.success && mjData.prompts) {
+          setMjPrompts(mjData.prompts);
+        } else {
+          // Fallback: 간단한 키워드 기반 프롬프트
+          setMjPrompts({
+            poster: `A breathtaking cinematic wide shot of ${kw}, dramatic lighting, photorealistic, 8k --ar 9:16 --v 6.0`,
+            logo: `A minimalist premium logo emblem for ${kw}, geometric, clean white background, flat vector design --no text, typography, letters --v 6.0`,
+            sns: `A premium lifestyle scene related to ${kw}, warm golden hour lighting, photorealistic, 8k --ar 1:1 --v 6.0`,
+            card: `A cinematic wide shot showcasing ${kw}, dramatic atmosphere, premium feel, photorealistic, 8k --ar 16:9 --v 6.0`,
+          });
+        }
+      } catch (mjErr) {
+        console.error('MJ prompt generation failed:', mjErr);
+        setMjPrompts({
+          poster: `A breathtaking cinematic wide shot of ${kw}, dramatic lighting, photorealistic, 8k --ar 9:16 --v 6.0`,
+          logo: `A minimalist premium logo emblem for ${kw}, geometric, clean white background, flat vector design --no text, typography, letters --v 6.0`,
+          sns: `A premium lifestyle scene related to ${kw}, warm golden hour lighting, photorealistic, 8k --ar 1:1 --v 6.0`,
+          card: `A cinematic wide shot showcasing ${kw}, dramatic atmosphere, premium feel, photorealistic, 8k --ar 16:9 --v 6.0`,
+        });
+      }
       setVisualGenerating(false);
 
       setToastMsg('✅ 제국 엔진 가동 완료!');
@@ -1909,7 +1934,7 @@ export default function EmpireConsole() {
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => handleVideoGenerate(
-                  mjPrompts?.poster || `Cinematic shot of ${masterInput || 'luxury apartment'}, golden hour, 4K`,
+                  mjPrompts?.poster || `Cinematic shot of ${masterInput || 'premium concept'}, golden hour, 4K`,
                   videoSourceImg,
                   'runway'
                 )}
@@ -1919,7 +1944,7 @@ export default function EmpireConsole() {
               </button>
               <button
                 onClick={() => handleVideoGenerate(
-                  mjPrompts?.poster || `Cinematic shot of ${masterInput || 'luxury apartment'}, golden hour, 4K`,
+                  mjPrompts?.poster || `Cinematic shot of ${masterInput || 'premium concept'}, golden hour, 4K`,
                   videoSourceImg,
                   'luma'
                 )}
