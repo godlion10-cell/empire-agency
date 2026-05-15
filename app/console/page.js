@@ -729,39 +729,51 @@ function EmpireConsole() {
     setToastMsg('🚀 제국 엔진 점화 중...');
 
     try {
-      // ═══ Step 0: Auto-Create Project in Supabase ═══
+      // ═══ Step 0: FORCE INSERT — 반드시 DB에 기록 ═══
       let projectId = activeProjectId;
       if (!projectId) {
-        try {
-          const projRes = await fetch('/api/projects', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              title: masterInput.substring(0, 60),
-              status: 'GEN_SCRIPT',
-              payload: { input: { url: masterInput, type: masterInput.startsWith('http') ? 'URL' : 'TEXT' } },
-            }),
-          });
-          const projData = await projRes.json();
-          if (projData.success && projData.project?.id) {
-            projectId = projData.project.id;
-            // URL 업데이트로 hydration 가능하게
-            router.push(`/console?pid=${projectId}`, { scroll: false });
-            console.log('📦 [IGNITE] 프로젝트 생성:', projectId);
-          }
-        } catch (e) {
-          console.error('프로젝트 생성 실패:', e.message);
+        setToastMsg('📦 프로젝트 생성 중...');
+        const projRes = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: masterInput.substring(0, 60) || 'New Empire Campaign',
+            status: 'ANALYZING',
+            payload: {
+              input: {
+                url: masterInput,
+                type: masterInput.startsWith('http') ? 'URL' : 'TEXT',
+              },
+            },
+          }),
+        });
+
+        const projData = await projRes.json();
+
+        if (!projData.success || !projData.project?.id) {
+          throw new Error(`DB INSERT 실패: ${projData.error || 'Unknown'}`);
         }
+
+        projectId = projData.project.id;
+        setActiveProjectId(projectId);
+
+        // ✅ 사이드바 즉시 갱신 (낙관적 UI 업데이트)
+        window.dispatchEvent(new CustomEvent('empire-sidebar-refresh', {
+          detail: { project: projData.project },
+        }));
+
+        // URL 업데이트 → hydration 가능
+        router.push(`/console?pid=${projectId}`, { scroll: false });
+        console.log('📦 [IGNITE] 프로젝트 생성 완료:', projectId);
       }
 
-      // ═══ Step 1: DNA Extraction (핵심 파이프라인) ═══
+      // ═══ Step 1: DNA Extraction ═══
       const isUrl = masterInput.startsWith('http');
       setCopyGenerating(true);
       setToastMsg('🧬 DNA 추출 중...');
 
       let copyResult;
       if (isUrl) {
-        // YouTube URL → process-url (3중 폴백 자막 추출 + 글로벌 프로세서)
         const res = await fetch('/api/process-url', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -769,14 +781,10 @@ function EmpireConsole() {
         });
         copyResult = await res.json();
       } else {
-        // 텍스트/키워드 → global-processor 직접 호출
         const res = await fetch('/api/engine/global-processor', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            input: masterInput,
-            inputType: 'TEXT',
-          }),
+          body: JSON.stringify({ input: masterInput, inputType: 'TEXT' }),
         });
         copyResult = await res.json();
       }
@@ -786,7 +794,6 @@ function EmpireConsole() {
         setCopyData(d);
         setEngineResult(d);
 
-        // MasterDNA — LLM 결과에서 동적 추출 (하드코딩 제거)
         const brandName = d?.videoTitle || d?.title || d?.brand_name || masterInput.substring(0, 30);
         const extractedUsps = d?.pureContent?.map(c => c.headline || c.copy?.substring(0, 50)).filter(Boolean)
           || d?.copies?.map(c => c.headline).filter(Boolean)
@@ -802,13 +809,33 @@ function EmpireConsole() {
           target: detectedTarget,
         });
 
-        // Adaptive segments 저장
         if (copyResult.adaptive) {
           setAdaptiveConfig(copyResult.adaptive.config);
           setAdaptiveSegments(copyResult.adaptive.segments);
         } else if (d?.adaptive) {
           setAdaptiveConfig(d.adaptive.config);
           setAdaptiveSegments(d.adaptive.segments);
+        }
+
+        // ═══ Step 1 완료 → DB UPDATE (DNA 결과 저장) ═══
+        if (projectId) {
+          fetch(`/api/projects/${projectId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              status: 'GEN_VISUALS',
+              title: brandName.substring(0, 60),
+              payload: {
+                input: { url: masterInput, type: isUrl ? 'URL' : 'TEXT' },
+                stageData: { script: { raw: d, committed: true } },
+                adaptive: copyResult.adaptive || d?.adaptive || null,
+                qa: copyResult.qa || d?.qa || null,
+              },
+            }),
+          }).then(() => {
+            // 사이드바에 업데이트된 상태 반영
+            window.dispatchEvent(new CustomEvent('empire-sidebar-refresh', {}));
+          }).catch(e => console.error('DB UPDATE 실패:', e.message));
         }
       }
       setCopyGenerating(false);
@@ -857,9 +884,23 @@ function EmpireConsole() {
         setAdaptiveSegments(copyResult.data.adaptive.segments);
       }
 
-      // ★ Auto-Save 트리거
-      if (activeProjectId) {
-        autoSave({ status: 'GEN_VISUALS' });
+      // ═══ Step 2 완료 → DB UPDATE (Visual 결과 저장) ═══
+      if (projectId) {
+        fetch(`/api/projects/${projectId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: 'COMPLETE',
+            payload: {
+              stageData: {
+                script: { committed: true },
+                visuals: { prompts: mjPrompts, committed: true },
+              },
+            },
+          }),
+        }).then(() => {
+          window.dispatchEvent(new CustomEvent('empire-sidebar-refresh', {}));
+        }).catch(e => console.error('Step 2 DB UPDATE 실패:', e.message));
       }
 
       setToastMsg('✅ 제국 엔진 가동 완료!');

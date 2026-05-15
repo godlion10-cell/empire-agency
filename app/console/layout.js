@@ -4,6 +4,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
 const STATUS_DOT = {
   'IDLE': 'bg-gray-500',
+  'ANALYZING': 'bg-cyan-400 animate-pulse',
   'GEN_SCRIPT': 'bg-blue-400 animate-pulse',
   'REVIEW_SCRIPT': 'bg-yellow-400',
   'GEN_VISUALS': 'bg-purple-400 animate-pulse',
@@ -41,20 +42,40 @@ function ConsoleLayoutInner({ children }) {
   const [search, setSearch] = useState('');
   const [collapsed, setCollapsed] = useState(false);
 
-  // 페이지 로드 시 프로젝트 목록 fetch
+  // 프로젝트 목록 fetch 함수 (재사용)
+  const fetchProjects = async () => {
+    try {
+      const res = await fetch('/api/projects');
+      const data = await res.json();
+      if (data.success) setProjects(data.projects || []);
+    } catch (e) {
+      console.log('⚠️ 프로젝트 로드 실패:', e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 페이지 로드 시 + 사이드바 리프레시 이벤트 수신
   useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const res = await fetch('/api/projects');
-        const data = await res.json();
-        if (data.success) setProjects(data.projects || []);
-      } catch (e) {
-        console.log('⚠️ 프로젝트 로드 실패:', e.message);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchProjects();
+
+    // page.js에서 프로젝트 생성 후 이 이벤트를 dispatch → 사이드바 즉시 갱신
+    const handleRefresh = (e) => {
+      console.log('🔄 [SIDEBAR] 리프레시 시그널 수신');
+      // 낙관적 업데이트: 이벤트에 새 프로젝트 데이터가 있으면 즉시 추가
+      if (e.detail?.project) {
+        setProjects(prev => {
+          const exists = prev.some(p => p.id === e.detail.project.id);
+          if (exists) return prev;
+          return [e.detail.project, ...prev];
+        });
+      }
+      // 서버에서도 최신 목록 가져오기 (백그라운드)
+      fetchProjects();
+    };
+
+    window.addEventListener('empire-sidebar-refresh', handleRefresh);
+    return () => window.removeEventListener('empire-sidebar-refresh', handleRefresh);
   }, []);
 
   // URL에서 현재 활성 프로젝트 ID 추출 (subroute or query param)
