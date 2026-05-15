@@ -1,10 +1,14 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function EmpireConsole() {
+  const router = useRouter();
   const [isLocked, setIsLocked] = useState(true);
   const [showShadowRoom, setShowShadowRoom] = useState(false);
+  const [showProjects, setShowProjects] = useState(false);
+  const [projects, setProjects] = useState([]);
 
   // 마스터 입력 상태
   const [masterInput, setMasterInput] = useState("");
@@ -662,6 +666,11 @@ export default function EmpireConsole() {
           </span>
           {/* 쉐도우 룸 스위치 */}
           <button
+            onClick={async () => { try { const r = await fetch('/api/projects'); const d = await r.json(); setProjects(d.projects || []); } catch {} setShowProjects(true); }}
+            className="px-4 py-1.5 rounded-full text-xs font-bold transition-all border bg-blue-900/40 border-blue-700 text-blue-300 hover:bg-blue-800/60">
+            📂 Projects
+          </button>
+          <button
             onClick={handleShadowToggle}
             className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
               showShadowRoom
@@ -673,6 +682,35 @@ export default function EmpireConsole() {
           </button>
         </div>
       </header>
+
+      {/* ═══ Projects Modal ═══ */}
+      {showProjects && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setShowProjects(false)}>
+          <div className="bg-gray-900 border border-blue-500 rounded-2xl shadow-2xl max-w-lg w-full mx-4 p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-lg font-bold text-blue-400">📂 파이프라인 프로젝트</h2>
+              <button onClick={async () => { const name = prompt('프로젝트 이름:'); if (name) { const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: name }) }); const data = await res.json(); if (data.success) router.push(`/console/${data.project.id}`); } }} className="px-4 py-1.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white text-xs font-bold rounded-lg">
+                + 새 프로젝트
+              </button>
+            </div>
+            {projects.length === 0 ? (
+              <p className="text-gray-600 text-sm text-center py-8">프로젝트가 없습니다. 새로 만들어보세요!</p>
+            ) : (
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {projects.map(p => (
+                  <div key={p.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-blue-700 transition-colors">
+                    <div className="cursor-pointer flex-1" onClick={() => router.push(`/console/${p.id}`)}>
+                      <p className="text-sm font-bold text-white">{p.title}</p>
+                      <p className="text-[9px] text-gray-500">{p.status} · {new Date(p.updatedAt).toLocaleDateString('ko-KR')}</p>
+                    </div>
+                    <button onClick={async () => { if (confirm('삭제할까요?')) { await fetch(`/api/projects/${p.id}`, { method: 'DELETE' }); const r = await fetch('/api/projects'); const d = await r.json(); setProjects(d.projects || []); } }} className="text-[9px] text-red-500 hover:text-red-400 px-2">🗑️</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ═══ Full-screen 로딩 오버레이 (Global Engine) ═══ */}
       {(globalProcessing || absorbingId || radarScanning || kwScanning) && (
