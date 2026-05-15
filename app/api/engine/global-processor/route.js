@@ -33,10 +33,14 @@ export async function POST(req) {
       inputType = formData.get('type') || 'URL';
       videoUrl = formData.get('url');
       file = formData.get('file');
+      var videoTitle = formData.get('videoTitle') || '';
+      var channelName = formData.get('channelName') || '';
     } else {
       const body = await req.json();
       inputType = body.type || 'URL';
       videoUrl = body.url || body.videoUrl;
+      var videoTitle = body.videoTitle || '';
+      var channelName = body.channelName || '';
     }
 
     console.log(`🌍 [GLOBAL] Stage 1: DNA Extraction — 모드: ${inputType}`);
@@ -57,8 +61,10 @@ export async function POST(req) {
         duration: transcript.duration_sec,
         segments: transcript.segment_count,
         extractionEngine: transcript.source,
+        videoTitle: videoTitle || '',
+        channelName: channelName || '',
       };
-      console.log(`📄 [GLOBAL] 자막 추출: ${transcript.segment_count}seg, ${transcript.duration_sec}s, via ${transcript.source}`);
+      console.log(`📄 [GLOBAL] 자막 추출: ${transcript.segment_count}seg, ${transcript.duration_sec}s, via ${transcript.source}${videoTitle ? `, title: ${videoTitle}` : ''}`);
 
     } else if (inputType === 'FILE' && file && file.size > 0) {
       // FILE 모드: OpenAI Whisper-1 음성 인식
@@ -95,9 +101,23 @@ export async function POST(req) {
 
     const prompt = `You are a Master Psychological Marketer, Cultural Adaptation Specialist, and Commerce Fusion Strategist.
 Analyze the following source text (which could be in English, Chinese, Japanese, or any language).
-
-[Source DNA]
+${videoTitle ? `
+[Video Context — USE THIS AS PRIMARY TOPIC INDICATOR]
+- Video Title: "${videoTitle}"
+${channelName ? `- Channel: ${channelName}` : ''}
+⚠️ IMPORTANT: The video title tells you what this video is ACTUALLY about.
+If the transcript below is sparse, short, or contains mostly music/sound effects with minimal dialogue,
+you MUST use the VIDEO TITLE as your primary source for understanding the main topic.
+Generate all content (pureContent, copies, hybridCommerce) based on the topic indicated by the title.
+` : ''}
+[Source DNA — Transcript]
 ${rawText.substring(0, 5000)}
+${rawText.length < 200 ? `
+🔴 SPARSE TRANSCRIPT ALERT: This transcript is very short (${rawText.length} chars).
+This likely means the video is visual-heavy (animals, ASMR, music, travel, etc.) with minimal dialogue.
+You MUST rely on the Video Title above to determine the main topic and generate relevant content.
+Do NOT generate generic or unrelated content. Base everything on the video title's topic.
+` : ''}
 
 [🧬 DUAL-EXTRACTION ENGINE — FUSION MODE]
 This transcript likely contains TWO types of content mixed together:

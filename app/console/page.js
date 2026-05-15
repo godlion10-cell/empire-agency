@@ -226,6 +226,9 @@ export default function EmpireConsole() {
       const formData = new FormData();
       formData.append('type', 'URL');
       formData.append('url', `https://youtube.com/watch?v=${videoId}`);
+      // 영상 메타데이터 전달 (트랜스크립트가 부족할 때 Gemini 컨텍스트용)
+      if (matchedVideo?.title) formData.append('videoTitle', matchedVideo.title);
+      if (matchedVideo?.channel) formData.append('channelName', matchedVideo.channel);
       const res = await fetch('/api/engine/global-processor', { method: 'POST', body: formData });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
