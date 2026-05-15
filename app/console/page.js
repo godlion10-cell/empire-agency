@@ -34,6 +34,8 @@ export default function EmpireConsole() {
   const [toastMsg, setToastMsg] = useState(null);
   const [uploadedImages, setUploadedImages] = useState([]); // 업로드 썸네일
   const [isDragOver, setIsDragOver] = useState(false);
+  const [slotImages, setSlotImages] = useState({ poster: null, logo: null, sns: null, card: null }); // 슬롯 매핑 이미지
+  const [dragOverSlot, setDragOverSlot] = useState(null); // 드래그 중인 슬롯
   const [videoJobs, setVideoJobs] = useState([]); // 영상 생성 작업
   const [videoSourceImg, setVideoSourceImg] = useState(null); // 3구역 소스 이미지
   const [summaryResult, setSummaryResult] = useState(null); // 엔진2 하이라이트 결과
@@ -1811,6 +1813,19 @@ export default function EmpireConsole() {
             ].map((item) => (
               <div
                 key={item.key}
+                onDragOver={(e) => { e.preventDefault(); setDragOverSlot(item.key); }}
+                onDragLeave={() => setDragOverSlot(null)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOverSlot(null);
+                  const imgUrl = e.dataTransfer.getData('text/image-url');
+                  const imgName = e.dataTransfer.getData('text/image-name');
+                  if (imgUrl) {
+                    setSlotImages(prev => ({ ...prev, [item.key]: { url: imgUrl, name: imgName } }));
+                    setToastMsg(`✅ ${imgName || '이미지'} → ${item.label} 슬롯에 매핑 완료`);
+                    setTimeout(() => setToastMsg(null), 2000);
+                  }
+                }}
                 onClick={() => {
                   if (mjPrompts?.[item.key]) {
                     navigator.clipboard.writeText(mjPrompts[item.key]);
@@ -1818,16 +1833,38 @@ export default function EmpireConsole() {
                     setTimeout(() => setToastMsg(null), 2000);
                   }
                 }}
-                className={`relative bg-black aspect-video rounded-lg flex flex-col items-center justify-center text-[10px] border-2 transition-all duration-300 cursor-pointer ${
-                  mjPrompts?.[item.key]
-                    ? 'border-[#39FF14]/50 hover:border-[#39FF14] text-emerald-400 shadow-[0_0_8px_rgba(57,255,20,0.15)] hover:shadow-[0_0_12px_rgba(57,255,20,0.3)]'
-                    : 'border-gray-800 hover:border-gray-700 text-gray-600'
+                className={`relative bg-black aspect-video rounded-lg flex flex-col items-center justify-center text-[10px] border-2 transition-all duration-300 cursor-pointer overflow-hidden ${
+                  dragOverSlot === item.key
+                    ? 'border-amber-400 bg-amber-900/20 scale-[1.03] shadow-[0_0_15px_rgba(251,191,36,0.3)]'
+                    : slotImages[item.key]
+                      ? 'border-emerald-500/60 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+                      : mjPrompts?.[item.key]
+                        ? 'border-[#39FF14]/50 hover:border-[#39FF14] text-emerald-400 shadow-[0_0_8px_rgba(57,255,20,0.15)] hover:shadow-[0_0_12px_rgba(57,255,20,0.3)]'
+                        : 'border-gray-800 hover:border-gray-700 text-gray-600'
                 }`}
               >
-                {mjPrompts?.[item.key] && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#39FF14] shadow-[0_0_6px_rgba(57,255,20,0.6)]"></span>}
-                <span className="text-lg mb-1">{item.icon}</span>
-                <span>{item.label}</span>
-                {mjPrompts?.[item.key] && <span className="text-[8px] text-[#39FF14]/70 mt-0.5">클릭 → 복사</span>}
+                {slotImages[item.key] ? (
+                  <>
+                    <img src={slotImages[item.key].url} alt={item.label} className="absolute inset-0 w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                    <span className="absolute bottom-1.5 left-2 text-[9px] text-white font-bold z-10">{item.icon} {item.label}</span>
+                    <button onClick={(e) => { e.stopPropagation(); setSlotImages(prev => ({ ...prev, [item.key]: null })); }} className="absolute top-1 right-1 w-5 h-5 bg-red-600/80 hover:bg-red-500 text-white text-[9px] rounded-full flex items-center justify-center z-10 opacity-0 hover:opacity-100 transition-opacity">×</button>
+                    {mjPrompts?.[item.key] && <span className="absolute top-1 left-1 w-2 h-2 rounded-full bg-[#39FF14] shadow-[0_0_6px_rgba(57,255,20,0.6)] z-10"></span>}
+                  </>
+                ) : (
+                  <>
+                    {dragOverSlot === item.key ? (
+                      <><span className="text-2xl mb-1 animate-bounce">🎯</span><span className="text-amber-400 font-bold">여기에 놓기!</span></>
+                    ) : (
+                      <>
+                        {mjPrompts?.[item.key] && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#39FF14] shadow-[0_0_6px_rgba(57,255,20,0.6)]"></span>}
+                        <span className="text-lg mb-1">{item.icon}</span>
+                        <span>{item.label}</span>
+                        {mjPrompts?.[item.key] ? <span className="text-[8px] text-[#39FF14]/70 mt-0.5">클릭→복사 | 드래그→매핑</span> : <span className="text-[8px] text-gray-600 mt-0.5">이미지를 드래그하세요</span>}
+                      </>
+                    )}
+                  </>
+                )}
               </div>
             ))}
           </div>
@@ -1856,11 +1893,21 @@ export default function EmpireConsole() {
           {uploadedImages.length > 0 && (
             <div className="grid grid-cols-4 gap-1.5 mb-3">
               {uploadedImages.map((img, i) => (
-                <div key={i} className="relative group">
-                  <img src={img.url} alt={img.name} className="w-full aspect-square object-cover rounded-lg border border-gray-700" />
+                <div key={i} className="relative group cursor-grab active:cursor-grabbing"
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('text/image-url', img.url);
+                    e.dataTransfer.setData('text/image-name', img.name || `Image ${i + 1}`);
+                    e.dataTransfer.effectAllowed = 'copy';
+                  }}
+                >
+                  <img src={img.url} alt={img.name} className="w-full aspect-square object-cover rounded-lg border border-gray-700 group-hover:border-amber-500 transition-colors" />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors rounded-lg flex items-center justify-center">
+                    <span className="text-white text-[9px] font-bold opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 px-1.5 py-0.5 rounded">⬆️ 드래그</span>
+                  </div>
                   <button
                     onClick={() => setUploadedImages(prev => prev.filter((_, idx) => idx !== i))}
-                    className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 text-white text-[8px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 text-white text-[8px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10"
                   >×</button>
                   <button
                     onClick={() => { setVideoSourceImg(img.url); setToastMsg(`✅ ${img.name} → 3구역 소스로 선택`); setTimeout(() => setToastMsg(null), 2000); }}
