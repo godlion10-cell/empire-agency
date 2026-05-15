@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { generateVisual, getAvailableProviders } from '@/lib/engines/visual-provider';
-import { validateVisualPrompts } from '@/lib/qa-validator';
+import { evaluateVisualPrompts } from '@/lib/qa-engine';
 
 export const maxDuration = 60;
 
@@ -100,7 +100,7 @@ export async function POST(req) {
     }
 
     // ═══ QA Gate 2: Visual Prompt Validation ═══
-    const qaCheck = validateVisualPrompts({ [slotType]: prompt });
+    const qaCheck = evaluateVisualPrompts({ [slotType]: prompt });
     if (!qaCheck.pass) {
       console.warn(`⚠️ [QA-GATE2] 프롬프트 검증 실패:`, qaCheck.issues);
       return NextResponse.json({

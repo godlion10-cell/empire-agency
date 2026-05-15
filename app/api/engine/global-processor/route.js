@@ -3,7 +3,7 @@ import OpenAI from 'openai';
 import { GoogleGenAI } from '@google/genai';
 import { fetchTranscript } from '@/lib/youtube-transcript';
 import { buildAnalysisPayload, segmentsToPromptText, extractKeyMoments } from '@/lib/analyzer-utils';
-import { validateScript, withQA } from '@/lib/qa-validator';
+import { runWithQA, evaluateDnaScript } from '@/lib/qa-engine';
 
 export const maxDuration = 60;
 
@@ -215,36 +215,34 @@ TRACK 3 — HYBRID COMMERCE (트로이 목마 융합)
   "viral_potential": 8
 }`;
 
-    const result = await genAI.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [{ parts: [{ text: prompt }] }],
-      config: {
-        responseMimeType: 'application/json',
-        temperature: 0.8,
-      },
-    });
+    // ═══ LLM 생성 + runWithQA 자동 검수 (최대 3회 재시도) ═══
+    const generateOnce = async () => {
+      const result = await genAI.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{ parts: [{ text: prompt }] }],
+        config: { responseMimeType: 'application/json', temperature: 0.8 },
+      });
 
-    const responseText = result.text || '';
-    let parsed;
-    try {
-      parsed = JSON.parse(responseText);
-    } catch {
-      // JSON 파싱 실패 시 텍스트에서 JSON 추출 시도
-      const match = responseText.match(/\{[\s\S]*\}/);
-      if (match) {
-        parsed = JSON.parse(match[0]);
-      } else {
-        throw new Error('Gemini 응답을 JSON으로 파싱할 수 없습니다.');
+      const responseText = result.text || '';
+      let parsed;
+      try {
+        parsed = JSON.parse(responseText);
+      } catch {
+        const match = responseText.match(/\{[\s\S]*\}/);
+        if (match) { parsed = JSON.parse(match[0]); }
+        else { throw new Error('Gemini 응답을 JSON으로 파싱할 수 없습니다.'); }
       }
-    }
+      return parsed;
+    };
+
+    // runWithQA: 생성 → LLM 심판 검수 → 실패 시 재생성 (최대 3회)
+    const parsed = await runWithQA(
+      'STEP 1: DNA 대본 추출',
+      generateOnce,
+      (result) => evaluateDnaScript(rawText, result)
+    );
 
     console.log(`✅ [GLOBAL] 완료: ${parsed.detected_language} → KR, viral: ${parsed.viral_potential}/10`);
-
-    // ═══ QA Gate 1: Script Hallucination Check ═══
-    const qaResult = await validateScript(rawText, parsed);
-    if (!qaResult.pass) {
-      console.warn(`⚠️ [QA-GATE1] 환각 감지: ${qaResult.reason?.substring(0, 100)}`);
-    }
 
     return NextResponse.json({
       success: true,
@@ -254,15 +252,13 @@ TRACK 3 — HYBRID COMMERCE (트로이 목마 융합)
         source: sourceInfo,
         originalLength: rawText.length,
         inputType,
-        // ★ 적응형 분석 데이터 (다운스트림 모듈용)
         adaptive: adaptivePayload ? {
           config: adaptivePayload.config,
           segments: adaptivePayload.segments,
           meta: adaptivePayload.meta,
           keyMoments: extractKeyMoments(adaptivePayload.segments),
         } : null,
-        // ★ QA Gate 결과
-        qa: { scriptCheck: qaResult.pass ? 'PASS' : 'FAIL', reason: qaResult.reason?.substring(0, 150) },
+        qa: { scriptCheck: 'PASS', engine: 'runWithQA' },
       },
     });
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { notifyStageComplete, notifyVideoComplete } from '@/lib/telegram-notify';
-import { validateVideoResponse } from '@/lib/qa-validator';
+import { evaluateVideoResponse } from '@/lib/qa-engine';
 
 /**
  * POST /api/video-generate
@@ -69,7 +69,7 @@ export async function POST(req) {
             }
           };
           // 🛡️ Gate 3: Video Response QC
-          const g3 = validateVideoResponse(responsePayload);
+          const g3 = evaluateVideoResponse(responsePayload);
           console.log(`🛡️ [G3-VIDEO] Runway: ${g3.pass ? '✅ PASS' : '❌ ' + g3.reason}`);
           // 📬 렌더링 시작 알림
           notifyStageComplete(prompt.substring(0, 30), 'VIDEO', `Runway ${mode} 시작 — ID: ${data.id}`).catch(() => {});

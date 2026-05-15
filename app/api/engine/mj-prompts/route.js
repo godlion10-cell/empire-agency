@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { validateVisualPrompts } from '@/lib/qa-validator';
+import { evaluateVisualPrompts } from '@/lib/qa-engine';
 
 /**
  * POST /api/engine/mj-prompts
@@ -102,7 +102,7 @@ Remember: Match the prompts to what "${keyword}" ACTUALLY means. Do NOT default 
     }
 
     // ═══ QA Gate 2: Visual Prompt Validation ═══
-    const qaCheck = validateVisualPrompts(prompts);
+    const qaCheck = evaluateVisualPrompts(prompts);
     console.log(`🛡️ [MJ-QA] ${qaCheck.pass ? '✅ PASS' : '⚠️ ISSUES: ' + qaCheck.issues.join(', ')}`);
 
     return NextResponse.json({ success: true, prompts, qa: qaCheck });
