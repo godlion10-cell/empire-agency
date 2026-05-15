@@ -34,6 +34,8 @@ export default function EmpireConsole() {
   const [slotImages, setSlotImages] = useState({ poster: null, logo: null, sns: null, card: null }); // 슬롯 매핑 이미지
   const [dragOverSlot, setDragOverSlot] = useState(null); // 드래그 중인 슬롯
   const [videoJobs, setVideoJobs] = useState([]); // 영상 생성 작업
+  const [visualProvider, setVisualProvider] = useState('ideogram'); // 비주얼 엔진 선택
+  const [visualGenJobs, setVisualGenJobs] = useState({}); // 슬롯별 생성 상태
   const [videoSourceImg, setVideoSourceImg] = useState(null); // 3구역 소스 이미지
   const [summaryResult, setSummaryResult] = useState(null); // 엔진2 하이라이트 결과
   const [summaryProcessing, setSummaryProcessing] = useState(false);
@@ -1927,6 +1929,78 @@ export default function EmpireConsole() {
           >
             📋 프롬프트 일괄 복사 {mjPrompts ? '(4종)' : ''}
           </button>
+
+          {/* 🎨 AI 이미지 생성 엔진 선택 */}
+          <div className="bg-black/30 p-3 rounded-lg border border-gray-800 mb-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] text-amber-400 font-bold">🎨 AI 이미지 엔진</span>
+              <span className="text-[7px] text-gray-600">슬롯 클릭 → AI 직접 생성</span>
+            </div>
+            <div className="grid grid-cols-3 gap-1">
+              {[
+                { id: 'ideogram', icon: '🔤', label: 'Ideogram', sub: 'Typography' },
+                { id: 'flux', icon: '📸', label: 'FLUX.1', sub: 'Realism' },
+                { id: 'leonardo', icon: '🎬', label: 'Leonardo', sub: 'Cinematic' },
+              ].map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => setVisualProvider(p.id)}
+                  className={`py-1.5 px-1 rounded-md text-[8px] font-bold transition-all border ${
+                    visualProvider === p.id
+                      ? 'border-amber-500 bg-amber-900/30 text-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.2)]'
+                      : 'border-gray-700 hover:border-gray-600 text-gray-500'
+                  }`}
+                >
+                  <span className="text-sm block">{p.icon}</span>
+                  <span className="block">{p.label}</span>
+                  <span className="block text-[6px] opacity-60">{p.sub}</span>
+                </button>
+              ))}
+            </div>
+            {mjPrompts && (
+              <button
+                onClick={async () => {
+                  const slots = ['poster', 'logo', 'sns', 'card'];
+                  for (const slot of slots) {
+                    if (!mjPrompts[slot]) continue;
+                    setVisualGenJobs(prev => ({ ...prev, [slot]: 'generating' }));
+                    try {
+                      const res = await fetch('/api/engine/visual', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          prompt: mjPrompts[slot],
+                          provider: visualProvider,
+                          slotType: slot,
+                        }),
+                      });
+                      const data = await res.json();
+                      if (data.success && data.data?.imageUrl) {
+                        setSlotImages(prev => ({ ...prev, [slot]: { url: data.data.imageUrl, name: `AI ${slot}` } }));
+                        setVisualGenJobs(prev => ({ ...prev, [slot]: 'done' }));
+                      } else {
+                        setVisualGenJobs(prev => ({ ...prev, [slot]: 'error' }));
+                        setToastMsg(`❌ ${slot}: ${data.error}`);
+                        setTimeout(() => setToastMsg(null), 3000);
+                      }
+                    } catch (err) {
+                      setVisualGenJobs(prev => ({ ...prev, [slot]: 'error' }));
+                    }
+                  }
+                  setToastMsg(`✅ ${visualProvider.toUpperCase()} 4종 생성 완료`);
+                  setTimeout(() => setToastMsg(null), 3000);
+                }}
+                className="w-full py-2 bg-gradient-to-r from-amber-700 to-orange-700 hover:from-amber-600 hover:to-orange-600 text-white text-[10px] font-bold rounded-lg transition-all shadow-lg shadow-amber-900/20 flex items-center justify-center gap-1.5"
+              >
+                {Object.values(visualGenJobs).some(v => v === 'generating') ? (
+                  <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> AI 생성 중...</>
+                ) : (
+                  <><span>🚀</span> {visualProvider === 'ideogram' ? 'Ideogram' : visualProvider === 'flux' ? 'FLUX' : 'Leonardo'}로 4종 자동 생성</>
+                )}
+              </button>
+            )}
+          </div>
+
           {/* 업로드 썸네일 표시 */}
           {uploadedImages.length > 0 && (
             <div className="grid grid-cols-4 gap-1.5 mb-3">
