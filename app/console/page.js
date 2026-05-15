@@ -2041,23 +2041,127 @@ export default function EmpireConsole() {
             </div>
 
             {/* 영상 작업 목록 */}
-            {videoJobs.map((job) => (
-              <div key={job.id} className={`p-3 rounded-lg border text-[10px] ${
-                job.status === 'processing' ? 'bg-purple-900/20 border-purple-700/30 animate-pulse' :
-                job.status === 'complete' ? 'bg-emerald-900/20 border-emerald-700/30' :
-                'bg-red-900/20 border-red-700/30'
-              }`}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-purple-400">{job.provider.toUpperCase()}</span>
-                  <span className={job.status === 'processing' ? 'text-amber-400' : job.status === 'complete' ? 'text-emerald-400' : 'text-red-400'}>
-                    {job.status === 'processing' ? '⏳ 렌더링 중...' : job.status === 'complete' ? '✅ 완료' : '❌ 에러'}
-                  </span>
+            {videoJobs.map((job) => {
+              const isMock = job.result?.provider === 'mock';
+              const isComplete = job.status === 'complete';
+              const videoUrl = job.result?.videoUrl || renderVideo;
+              const hasVideo = isComplete && videoUrl;
+
+              return (
+                <div key={job.id} className={`rounded-xl border overflow-hidden transition-all ${
+                  job.status === 'processing' ? 'border-purple-700/30 animate-pulse' :
+                  isComplete ? (isMock ? 'border-amber-700/40' : 'border-emerald-700/30') :
+                  'border-red-700/30'
+                }`}>
+                  {/* Job Header */}
+                  <div className={`p-3 text-[10px] ${
+                    job.status === 'processing' ? 'bg-purple-900/20' :
+                    isComplete ? (isMock ? 'bg-amber-900/15' : 'bg-emerald-900/20') :
+                    'bg-red-900/20'
+                  }`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-purple-400 flex items-center gap-1.5">
+                        {job.provider === 'runway' ? '🎬' : '✨'} {job.provider.toUpperCase()}
+                        {isMock && <span className="text-[8px] px-1.5 py-0.5 bg-amber-800/50 text-amber-400 rounded font-medium">MOCK</span>}
+                      </span>
+                      <span className={
+                        job.status === 'processing' ? 'text-amber-400' :
+                        isComplete ? (isMock ? 'text-amber-400' : 'text-emerald-400') :
+                        'text-red-400'
+                      }>
+                        {job.status === 'processing' ? '⏳ 렌더링 중...' : isComplete ? (isMock ? '⚠️ Mock 완료' : '✅ 완료') : '❌ 에러'}
+                      </span>
+                    </div>
+                    <p className="text-gray-500 truncate">{job.prompt?.substring(0, 60)}...</p>
+                    {job.imageUrl && <p className="text-gray-600 text-[8px]">📸 Image→Video 모드</p>}
+                  </div>
+
+                  {/* ⚠️ MOCK 모드 경고 */}
+                  {isMock && (
+                    <div className="m-3 p-4 bg-gradient-to-r from-amber-950/60 to-red-950/40 border border-amber-600/40 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <span className="text-3xl">⚠️</span>
+                        <div className="flex-1">
+                          <h4 className="text-amber-400 font-bold text-xs mb-1">API 키 미설정 — 실제 영상이 생성되지 않았습니다</h4>
+                          <p className="text-[10px] text-amber-300/70 mb-2">{job.result?.message}</p>
+                          <div className="bg-black/40 rounded-lg p-2.5 text-[9px] font-mono text-gray-400 space-y-1">
+                            <p className="text-amber-400 font-bold">// .env.local에 아래 키를 추가하세요:</p>
+                            <p>RUNWAY_API_KEY=<span className="text-red-400">your_runway_key_here</span></p>
+                            <p>LUMA_API_KEY=<span className="text-red-400">your_luma_key_here</span></p>
+                          </div>
+                          {job.result?.mockPreview?.thumbnail && (
+                            <div className="mt-3">
+                              <p className="text-[9px] text-gray-500 mb-1">📸 소스 이미지 (실제 렌더링 시 사용됨):</p>
+                              <img src={job.result.mockPreview.thumbnail} alt="Mock preview" className="w-full aspect-video object-cover rounded-lg border border-gray-800" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 🎬 비디오 플레이어 (실제 영상이 있을 때) */}
+                  {hasVideo && (
+                    <div className="m-3 rounded-lg overflow-hidden border border-gray-800 bg-black">
+                      <div className="px-3 py-2 bg-gray-900/80 border-b border-gray-800 flex justify-between items-center">
+                        <span className="text-[9px] text-gray-400 font-medium">🎬 Final Output Preview</span>
+                        <span className="text-[8px] text-emerald-500 font-mono">MP4 + 자막</span>
+                      </div>
+                      <video
+                        controls
+                        className="w-full aspect-[9/16] bg-black object-contain"
+                        src={videoUrl}
+                        crossOrigin="anonymous"
+                        playsInline
+                      >
+                        {/* WebVTT 자막 트랙 */}
+                        {(copyData || engineResult) && (() => {
+                          const scriptText = copyData?.[0]?.body || engineResult?.script?.hook || '';
+                          if (!scriptText) return null;
+                          const lines = scriptText.split(/[.!?。！？\n]/).filter(l => l.trim());
+                          const secPerLine = Math.max(3, Math.floor(30 / Math.max(lines.length, 1)));
+                          let vtt = 'WEBVTT\n\n';
+                          lines.forEach((line, i) => {
+                            const start = i * secPerLine;
+                            const end = start + secPerLine;
+                            const fmt = (s) => {
+                              const m = String(Math.floor(s / 60)).padStart(2, '0');
+                              const sec = String(s % 60).padStart(2, '0');
+                              return `00:${m}:${sec}.000`;
+                            };
+                            vtt += `${i + 1}\n${fmt(start)} --> ${fmt(end)}\n${line.trim()}\n\n`;
+                          });
+                          const blob = new Blob([vtt], { type: 'text/vtt' });
+                          const url = URL.createObjectURL(blob);
+                          return <track default kind="captions" srcLang="ko" src={url} label="Korean" />;
+                        })()}
+                      </video>
+                      <div className="px-3 py-2 bg-gray-900/80 border-t border-gray-800 flex justify-between items-center gap-2">
+                        <span className="text-[8px] text-gray-600">🎬 {job.provider.toUpperCase()} • {job.result?.duration || 5}s</span>
+                        <a href={videoUrl} download className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-[9px] font-bold rounded-lg transition-colors flex items-center gap-1">
+                          💾 MP4 다운로드
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 자막 프리뷰 텍스트 (영상 없어도 표시) */}
+                  {isComplete && !hasVideo && (copyData || engineResult) && (
+                    <div className="m-3 p-3 bg-gray-900/50 border border-gray-800 rounded-lg">
+                      <p className="text-[9px] text-gray-500 font-bold mb-1.5">📝 자막 프리뷰 (영상 생성 후 오버레이됨)</p>
+                      <div className="bg-black/60 rounded p-2 max-h-24 overflow-y-auto">
+                        {(copyData?.[0]?.body || engineResult?.script?.hook || '자막 데이터 없음').split(/[.!?。！？\n]/).filter(l => l.trim()).map((line, i) => (
+                          <p key={i} className="text-[9px] text-white/80 py-0.5 border-b border-gray-800/30 last:border-0">
+                            <span className="text-[7px] text-purple-500 mr-1.5 font-mono">{String(i + 1).padStart(2, '0')}</span>
+                            {line.trim()}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <p className="text-gray-500 truncate">{job.prompt?.substring(0, 60)}...</p>
-                {job.imageUrl && <p className="text-gray-600 text-[8px]">📸 Image→Video 모드</p>}
-                {job.result?.message && <p className="text-gray-400 mt-1 text-[9px]">{job.result.message}</p>}
-              </div>
-            ))}
+              );
+            })}
 
             {/* 오디오 플레이어 */}
             {engineResult?.audio?.dataUrl && (
