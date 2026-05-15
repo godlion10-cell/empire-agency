@@ -1,6 +1,6 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
 const STATUS_DOT = {
   'IDLE': 'bg-gray-500',
@@ -25,8 +25,17 @@ const formatKST = (isoString) => {
 };
 
 export default function ConsoleLayout({ children }) {
+  return (
+    <Suspense fallback={<div className="flex h-screen w-full bg-black" />}>
+      <ConsoleLayoutInner>{children}</ConsoleLayoutInner>
+    </Suspense>
+  );
+}
+
+function ConsoleLayoutInner({ children }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -48,8 +57,8 @@ export default function ConsoleLayout({ children }) {
     fetchProjects();
   }, []);
 
-  // URL에서 현재 활성 프로젝트 ID 추출
-  const activeId = pathname?.match(/\/console\/([^/]+)/)?.[1] || null;
+  // URL에서 현재 활성 프로젝트 ID 추출 (subroute or query param)
+  const activeId = pathname?.match(/\/console\/([^/]+)/)?.[1] || searchParams?.get('pid') || null;
 
   const filtered = projects.filter(p =>
     !search || p.title?.toLowerCase().includes(search.toLowerCase())
@@ -139,7 +148,7 @@ export default function ConsoleLayout({ children }) {
             return (
               <div
                 key={p.id}
-                onClick={() => router.push(`/console/${p.id}`)}
+                onClick={() => router.push(`/console?pid=${p.id}`)}
                 className={`group rounded-lg border cursor-pointer transition-all ${collapsed ? 'p-1.5' : 'p-2.5'} ${
                   isActive
                     ? 'border-amber-500/50 bg-amber-900/15 shadow-md shadow-amber-900/10'

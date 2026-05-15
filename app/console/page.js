@@ -1,10 +1,20 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function EmpireConsole() {
+export default function EmpireConsolePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center"><div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" /></div>}>
+      <EmpireConsole />
+    </Suspense>
+  );
+}
+
+function EmpireConsole() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeProjectId = searchParams?.get('pid') || null;
   const [isLocked, setIsLocked] = useState(true);
   const [showShadowRoom, setShowShadowRoom] = useState(false);
 
@@ -91,7 +101,76 @@ export default function EmpireConsole() {
   const [selectedVoice, setSelectedVoice] = useState('');
   const [voicesLoading, setVoicesLoading] = useState(false);
 
-  // 대시보드 로드 시 보이스 목록 자동 불러오기
+  // ★ Adaptive Analysis 세그먼트
+  const [adaptiveSegments, setAdaptiveSegments] = useState(null);
+  const [adaptiveConfig, setAdaptiveConfig] = useState(null);
+
+  // ═══ Auto-Save (Debounced) — 프로젝트 상태 자동 저장 ═══
+  const saveTimerRef = useRef(null);
+  const autoSave = useCallback(async (overrides = {}) => {
+    if (!activeProjectId) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      try {
+        const payload = {
+          masterInput,
+          activeEngine,
+          masterDNA,
+          copyData,
+          mjPrompts,
+          slotImages,
+          videoJobs,
+          visualProvider,
+          globalResult: globalResult ? { detected_language: globalResult.detected_language, viral_potential: globalResult.viral_potential } : null,
+          adaptiveConfig,
+          adaptiveSegments: adaptiveSegments?.slice(0, 20),
+          ...overrides,
+        };
+        await fetch(`/api/projects/${activeProjectId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ payload }),
+        });
+        console.log('💾 [AUTO-SAVE] 저장 완료');
+      } catch (e) {
+        console.error('⚠️ [AUTO-SAVE] 실패:', e.message);
+      }
+    }, 2000);
+  }, [activeProjectId, masterInput, activeEngine, masterDNA, copyData, mjPrompts, slotImages, videoJobs, visualProvider, globalResult, adaptiveConfig, adaptiveSegments]);
+
+  // ═══ Hydration — 페이지 로드 시 프로젝트 복원 ═══
+  useEffect(() => {
+    if (!activeProjectId) return;
+    const hydrate = async () => {
+      try {
+        const res = await fetch(`/api/projects/${activeProjectId}`);
+        const data = await res.json();
+        if (!data.success || !data.project?.payload) return;
+        const p = data.project.payload;
+        console.log('💧 [HYDRATE] 프로젝트 복원 시작:', activeProjectId);
+        if (p.masterInput) setMasterInput(p.masterInput);
+        if (p.activeEngine) setActiveEngine(p.activeEngine);
+        if (p.masterDNA?.brand_name) setMasterDNA(p.masterDNA);
+        if (p.copyData) setCopyData(p.copyData);
+        if (p.mjPrompts) setMjPrompts(p.mjPrompts);
+        if (p.slotImages) setSlotImages(p.slotImages);
+        if (p.visualProvider) setVisualProvider(p.visualProvider);
+        if (p.adaptiveConfig) setAdaptiveConfig(p.adaptiveConfig);
+        if (p.adaptiveSegments) setAdaptiveSegments(p.adaptiveSegments);
+        console.log('✅ [HYDRATE] 복원 완료');
+      } catch (e) {
+        console.error('⚠️ [HYDRATE] 실패:', e.message);
+      }
+    };
+    hydrate();
+  }, [activeProjectId]);
+
+  // ★ 상태 변경 시 Auto-Save 트리거
+  useEffect(() => {
+    if (activeProjectId && (copyData || mjPrompts || globalResult)) {
+      autoSave();
+    }
+  }, [copyData, mjPrompts, globalResult, slotImages, videoJobs, autoSave, activeProjectId]);
 
   // ★ 유틸: 조회수 포맷 (1500000 → 150만)
   const formatViews = (views) => {
@@ -737,6 +816,17 @@ export default function EmpireConsole() {
         });
       }
       setVisualGenerating(false);
+
+      // ★ Adaptive Analysis 결과 저장 (글로벌 프로세서에서 반환된 경우)
+      if (copyResult.data?.adaptive) {
+        setAdaptiveConfig(copyResult.data.adaptive.config);
+        setAdaptiveSegments(copyResult.data.adaptive.segments);
+      }
+
+      // ★ Auto-Save 트리거
+      if (activeProjectId) {
+        autoSave({ status: 'GEN_VISUALS' });
+      }
 
       setToastMsg('✅ 제국 엔진 가동 완료!');
       setTimeout(() => setToastMsg(null), 3000);
@@ -1790,6 +1880,33 @@ export default function EmpireConsole() {
             {copyGenerating && <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-300 rounded animate-pulse">⏳ AI 기획 중...</span>}
             {selectedHighlight && <span className="text-[9px] text-gray-500 ml-auto">#{selectedHighlight.rank || '1'} 기반</span>}
           </h3>
+          {/* ★ Adaptive Analysis Chunk Visualization */}
+          {adaptiveSegments && adaptiveSegments.length > 0 && (
+            <div className="bg-black/40 rounded-lg p-3 border border-purple-800/40 mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[9px] text-purple-400 font-bold flex items-center gap-1">
+                  🔬 Adaptive Segments
+                  <span className={`text-[7px] px-1.5 py-0.5 rounded font-bold ${
+                    adaptiveConfig?.resolution === 'ULTRA_HIGH' ? 'bg-red-900/40 text-red-300' :
+                    adaptiveConfig?.resolution === 'HIGH' ? 'bg-amber-900/40 text-amber-300' :
+                    adaptiveConfig?.resolution === 'BALANCED' ? 'bg-blue-900/40 text-blue-300' :
+                    'bg-gray-800 text-gray-400'
+                  }`}>{adaptiveConfig?.resolution || 'AUTO'}</span>
+                </span>
+                <span className="text-[7px] text-gray-600">{adaptiveSegments.length}청크 | {adaptiveConfig?.interval}s 간격</span>
+              </div>
+              <div className="max-h-32 overflow-y-auto space-y-0.5 scrollbar-thin">
+                {adaptiveSegments.map((seg, i) => (
+                  <div key={i} className="flex items-start gap-2 py-1 px-1.5 rounded hover:bg-purple-900/10 transition-colors group">
+                    <span className="text-[8px] font-mono text-purple-400/80 shrink-0 w-16">{seg.timeLabel}–{seg.endLabel}</span>
+                    <span className="text-[8px] text-gray-500 truncate flex-1 group-hover:text-gray-300 transition-colors">{seg.content?.substring(0, 80)}{seg.content?.length > 80 ? '...' : ''}</span>
+                    <span className="text-[6px] text-gray-700 shrink-0">{seg.wordCount}w</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-3 text-sm text-gray-400">
             {copyGenerating ? (
               <div className="bg-black/30 p-6 rounded-lg text-center">
