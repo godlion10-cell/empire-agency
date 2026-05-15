@@ -93,36 +93,43 @@ export async function POST(req) {
     // ═══════════════════════════════════════════
     console.log(`🧠 [GLOBAL] Stage 2: Psychological Adaptation — ${rawText.length}자 투입`);
 
-    const prompt = `You are a Master Psychological Marketer and Cultural Adaptation Specialist.
+    const prompt = `You are a Master Psychological Marketer, Cultural Adaptation Specialist, and Commerce Fusion Strategist.
 Analyze the following source text (which could be in English, Chinese, Japanese, or any language).
 
 [Source DNA]
 ${rawText.substring(0, 5000)}
 
-[🛡️ SPONSOR SHIELD — CRITICAL PRE-PROCESSING STEP]
-Before ANY analysis, you MUST scan the entire transcript and IDENTIFY then IGNORE all of the following:
-- **Sponsor reads / Mid-roll ads**: "This video is sponsored by...", "Thanks to [Brand] for sponsoring...", "Use code [X] for..."
-- **PPL (Product Placement)**: Segments where the creator suddenly pivots to promote an unrelated product or service
-- **Affiliate pitches**: "Check the link in description", "Use my referral code", "Sign up with my link"
-- **Common sponsor brands to filter**: NordVPN, BetterHelp, Squarespace, Skillshare, Audible, Raid Shadow Legends, HelloFresh, ExpressVPN, Surfshark, Dollar Shave Club, Manscaped, AG1, Athletic Greens, 쿠팡, 닥터바리스타, 뮤직카우, 토스, 리디, 밀리의서재
-- **Self-promotion segments**: "Subscribe to my channel", "Hit the bell icon", "Join my Patreon/membership"
-- **Outro/filler segments**: Generic sign-offs, "See you in the next video", end-screen callouts
+[🧬 DUAL-EXTRACTION ENGINE — FUSION MODE]
+This transcript likely contains TWO types of content mixed together:
+1. **PURE CONTENT** (메인 콘텐츠): The video's actual topic — the story, knowledge, entertainment, or information the creator is sharing
+2. **SPONSOR/PPL CONTENT** (광고 콘텐츠): Mid-roll sponsor reads, product placements, affiliate pitches, brand promotions
 
-🔴 ABSOLUTE RULE: Extract DNA ONLY from the MAIN CONTENT — the original topic the creator is actually discussing.
-If 70%+ of the transcript is sponsor content, still find the core topic from the remaining 30%.
-The ad scripts you generate must be about the VIDEO'S MAIN TOPIC, never about the sponsors.
+Your job is to SEPARATE and EXTRACT BOTH, then CREATE a FUSION HYBRID.
 
-[Mission]
-1. DETECT the original language.
-2. IDENTIFY the video's TRUE MAIN TOPIC (ignore all sponsor/PPL segments).
-3. EXTRACT the core selling logic, emotional triggers, and key claims from the MAIN CONTENT ONLY.
-4. TRANSLATE and LOCALIZE into perfect Korean for the 2030 demographic (MZ세대).
-5. Apply psychological triggers:
-   - "Pain Avoidance" (공포/손실 회피): 이걸 안 하면 뒤처진다는 느낌
-   - "Growth Desire" (성장/기회 욕구): 이걸 하면 더 나은 내가 된다는 확신
-   - "Social Proof" (사회적 증거): 다른 사람들도 이미 하고 있다는 안심
-6. Generate SHORT-FORM ad scripts in 3 durations (15초/30초/60초) about the MAIN TOPIC.
-7. Create a Midjourney visual prompt for the thumbnail/poster matching the MAIN TOPIC.
+[Sponsor Detection Signals]
+- "This video is sponsored by...", "Thanks to [Brand] for sponsoring..."
+- "Use code [X] for...", "Check the link in description"
+- Sudden topic pivots to unrelated products/services
+- Common sponsors: NordVPN, BetterHelp, Squarespace, Skillshare, Audible, HelloFresh, AG1, 쿠팡, 닥터바리스타, 뮤직카우, 토스, 리디, 밀리의서재
+- Self-promotion: "Subscribe", "Hit the bell", "Join my Patreon"
+
+[Mission — 3-Track Parallel Output]
+
+TRACK 1 — PURE CONTENT (순수 콘텐츠)
+- Extract ONLY the main topic DNA, completely free of any sponsor content
+- Generate 15초/30초/60초 ad scripts about the PURE main topic
+- Create a Midjourney visual prompt matching the PURE topic
+
+TRACK 2 — EXTRACTED SPONSOR (스폰서 추출)
+- Identify and extract any sponsor/PPL segments found in the transcript
+- Summarize the sponsor's product name, selling points, and CTA
+- If no sponsor found, output "광고 없음"
+
+TRACK 3 — HYBRID COMMERCE (트로이 목마 융합)
+- Create a "Trojan Horse" script that STARTS with the pure content's viral hook
+- Then SMOOTHLY transitions into a commerce ad (using the extracted sponsor's product OR a generic product placeholder)
+- The viewer should be hooked by the content BEFORE realizing it's an ad
+- This is the most valuable output — a script that feels like content but sells like an ad
 
 [Tone Rules]
 - MUST use natural Korean 해요체 (~기회예요, ~만나보세요, ~시작해보세요)
@@ -132,9 +139,8 @@ The ad scripts you generate must be about the VIDEO'S MAIN TOPIC, never about th
 [Output Format — RETURN ONLY VALID JSON]
 {
   "detected_language": "EN|CN|JP|KR|etc",
-  "main_topic": "영상의 실제 핵심 주제 (스폰서 제외, 1줄)",
-  "original_summary": "원본 핵심 메시지 1줄 요약 (원어 그대로, 스폰서 제외)",
-  "sponsor_segments_ignored": ["무시한 스폰서/PPL 세그먼트 요약 1", "세그먼트 2"],
+  "main_topic": "영상의 실제 핵심 주제 (1줄)",
+  "original_summary": "원본 핵심 메시지 1줄 요약 (원어 그대로)",
   "korean_adaptation": {
     "title": "한국형 제목 (궁금증 유발, 15자 이내)",
     "hook": "첫 1초 훅 — 스크롤을 멈추게 하는 한 마디",
@@ -143,9 +149,19 @@ The ad scripts you generate must be about the VIDEO'S MAIN TOPIC, never about th
       { "duration": "30초", "headline": "", "body": "", "cta": "" },
       { "duration": "60초", "headline": "", "body": "", "cta": "" }
     ],
-    "visual_prompt": "Midjourney V6 style prompt for the ad thumbnail, 9:16 vertical, cinematic lighting, Korean aesthetic"
+    "visual_prompt": "Midjourney V6 style prompt for the PURE content thumbnail, 9:16 vertical, cinematic"
   },
-  "psychological_triggers": ["사용된 심리 기법 설명 1", "기법 2", "기법 3"],
+  "pureContent": "광고를 완전히 제거한 영상 본연의 바이럴 스토리 대본 (30초 분량, 해요체, 핵심 지식/재미/감동만 담기)",
+  "extractedSponsor": {
+    "found": true,
+    "brandName": "발견된 스폰서 브랜드명",
+    "originalCopy": "원본 스폰서 멘트 핵심 요약 (원어)",
+    "koreanCopy": "한국어 번역 요약",
+    "sellingPoints": ["핵심 셀링포인트1", "포인트2"],
+    "cta": "스폰서의 CTA"
+  },
+  "hybridCommerce": "트로이 목마 스크립트 — [순수 콘텐츠 훅]으로 시작 → 자연스러운 전환 → [커머스 제품 광고]로 착지하는 30초 하이브리드 대본 (해요체)",
+  "psychological_triggers": ["사용된 심리 기법 1", "기법 2", "기법 3"],
   "keywords": ["타겟 키워드1", "키워드2", "키워드3"],
   "viral_potential": 8
 }`;

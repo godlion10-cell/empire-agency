@@ -1113,55 +1113,104 @@ export default function EmpireConsole() {
                   <p className="text-gray-400 italic">" {globalResult.korean_adaptation?.hook || '분석된 후킹 포인트가 여기에 표시됩니다.'} "</p>
                 </div>
 
-                {/* 메인 토픽 + 스폰서 쉴드 */}
-                {(globalResult.main_topic || globalResult.sponsor_segments_ignored?.length > 0) && (
-                  <div className="mb-5 p-3 bg-black/30 rounded-lg border border-gray-800">
-                    {globalResult.main_topic && (
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-[9px] text-emerald-500 font-bold">🎯 메인 토픽:</span>
-                        <span className="text-[11px] text-white font-semibold">{globalResult.main_topic}</span>
-                      </div>
-                    )}
-                    {globalResult.sponsor_segments_ignored?.length > 0 && (
-                      <div className="flex items-start gap-2">
-                        <span className="text-[9px] text-red-400 font-bold shrink-0">🛡️ 스폰서 쉴드:</span>
-                        <div className="flex gap-1 flex-wrap">
-                          {globalResult.sponsor_segments_ignored.map((seg, i) => (
-                            <span key={i} className="text-[9px] text-gray-500 bg-red-900/15 px-1.5 py-0.5 rounded border border-red-900/20 line-through">{seg}</span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                {/* 메인 토픽 */}
+                {globalResult.main_topic && (
+                  <div className="mb-5 flex items-center gap-2 p-2.5 bg-black/30 rounded-lg border border-gray-800">
+                    <span className="text-[9px] text-emerald-500 font-bold">🎯 메인 토픽:</span>
+                    <span className="text-[11px] text-white font-semibold">{globalResult.main_topic}</span>
                   </div>
                 )}
 
-                {/* 3종 대본 (15초 / 30초 / 60초) 나열 구역 */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  {/* 15초 숏폼 */}
-                  <div className="p-4 bg-gray-800 rounded-lg">
-                    <div className="flex justify-between items-center border-b border-gray-700 pb-2 mb-2">
-                      <h3 className="text-purple-400 font-bold">⏱️ 15초 컷!</h3>
-                      <button onClick={() => handleCopy(globalResult.korean_adaptation?.copies?.[0] ? `${globalResult.korean_adaptation.copies[0].headline}\n${globalResult.korean_adaptation.copies[0].body}\n${globalResult.korean_adaptation.copies[0].cta}` : '')} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">📋 복사</button>
-                    </div>
-                    <p className="text-sm text-gray-300 whitespace-pre-wrap">{globalResult.korean_adaptation?.copies?.[0] ? `${globalResult.korean_adaptation.copies[0].headline}\n\n${globalResult.korean_adaptation.copies[0].body}\n\n${globalResult.korean_adaptation.copies[0].cta}` : ''}</p>
-                  </div>
+                {/* ═══ 3-Track DNA Fusion Panel ═══ */}
+                <div className="mb-6">
+                  <h3 className="text-xs text-gray-500 font-bold mb-3 uppercase tracking-wider">🧬 DNA Fusion — 3-Track Extraction</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-                  {/* 30초 숏폼 */}
-                  <div className="p-4 bg-gray-800 rounded-lg border border-purple-500/30">
-                    <div className="flex justify-between items-center border-b border-gray-700 pb-2 mb-2">
-                      <h3 className="text-purple-400 font-bold">🎬 30초 숏폼 (추천)</h3>
-                      <button onClick={() => handleCopy(globalResult.korean_adaptation?.copies?.[1] ? `${globalResult.korean_adaptation.copies[1].headline}\n${globalResult.korean_adaptation.copies[1].body}\n${globalResult.korean_adaptation.copies[1].cta}` : '')} className="text-xs bg-purple-600 hover:bg-purple-500 px-2 py-1 rounded">📋 복사</button>
+                    {/* TRACK 1: Pure Content */}
+                    <div className="p-4 bg-gray-800 rounded-lg border border-emerald-800/30">
+                      <div className="flex justify-between items-center border-b border-emerald-900/30 pb-2 mb-3">
+                        <h3 className="text-emerald-400 font-bold text-sm">🧪 순수 콘텐츠</h3>
+                        <button onClick={() => handleCopy(globalResult.pureContent)} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">📋 복사</button>
+                      </div>
+                      <p className="text-[9px] text-emerald-500/60 mb-2">광고 0% — 영상 본연의 바이럴 스토리</p>
+                      <p className="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">{globalResult.pureContent || '분석 결과가 없습니다.'}</p>
                     </div>
-                    <p className="text-sm text-white whitespace-pre-wrap">{globalResult.korean_adaptation?.copies?.[1] ? `${globalResult.korean_adaptation.copies[1].headline}\n\n${globalResult.korean_adaptation.copies[1].body}\n\n${globalResult.korean_adaptation.copies[1].cta}` : ''}</p>
-                  </div>
 
-                  {/* 60초 숏폼 */}
-                  <div className="p-4 bg-gray-800 rounded-lg">
-                    <div className="flex justify-between items-center border-b border-gray-700 pb-2 mb-2">
-                      <h3 className="text-purple-400 font-bold">📖 60초 스토리텔링</h3>
-                      <button onClick={() => handleCopy(globalResult.korean_adaptation?.copies?.[2] ? `${globalResult.korean_adaptation.copies[2].headline}\n${globalResult.korean_adaptation.copies[2].body}\n${globalResult.korean_adaptation.copies[2].cta}` : '')} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">📋 복사</button>
+                    {/* TRACK 2: Extracted Sponsor */}
+                    <div className="p-4 bg-gray-800 rounded-lg border border-red-800/30">
+                      <div className="flex justify-between items-center border-b border-red-900/30 pb-2 mb-3">
+                        <h3 className="text-red-400 font-bold text-sm">📢 스폰서 추출</h3>
+                        <button onClick={() => handleCopy(globalResult.extractedSponsor?.found ? `[${globalResult.extractedSponsor.brandName}]\n${globalResult.extractedSponsor.koreanCopy}\n셀링포인트: ${globalResult.extractedSponsor.sellingPoints?.join(', ')}\nCTA: ${globalResult.extractedSponsor.cta}` : '광고 없음')} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">📋 복사</button>
+                      </div>
+                      {globalResult.extractedSponsor?.found ? (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="px-2 py-0.5 bg-red-900/40 text-red-300 text-[9px] font-bold rounded border border-red-700/50">{globalResult.extractedSponsor.brandName}</span>
+                          </div>
+                          <p className="text-[10px] text-gray-500 mb-1">📝 원문:</p>
+                          <p className="text-[11px] text-gray-400 italic mb-2">{globalResult.extractedSponsor.originalCopy}</p>
+                          <p className="text-[10px] text-gray-500 mb-1">🇰🇷 한국어:</p>
+                          <p className="text-sm text-gray-300 mb-2">{globalResult.extractedSponsor.koreanCopy}</p>
+                          {globalResult.extractedSponsor.sellingPoints?.length > 0 && (
+                            <div className="flex gap-1 flex-wrap mb-2">
+                              {globalResult.extractedSponsor.sellingPoints.map((sp, i) => (
+                                <span key={i} className="text-[9px] bg-red-900/20 text-red-300/80 px-1.5 py-0.5 rounded">{sp}</span>
+                              ))}
+                            </div>
+                          )}
+                          <p className="text-[10px] text-amber-400">💡 CTA: {globalResult.extractedSponsor.cta}</p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-6 text-gray-600">
+                          <span className="text-2xl mb-2">🛡️</span>
+                          <p className="text-sm font-bold">광고 없음</p>
+                          <p className="text-[10px]">스폰서/PPL이 감지되지 않았습니다</p>
+                        </div>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-300 whitespace-pre-wrap">{globalResult.korean_adaptation?.copies?.[2] ? `${globalResult.korean_adaptation.copies[2].headline}\n\n${globalResult.korean_adaptation.copies[2].body}\n\n${globalResult.korean_adaptation.copies[2].cta}` : ''}</p>
+
+                    {/* TRACK 3: Hybrid Commerce */}
+                    <div className="p-4 bg-gray-800 rounded-lg border border-amber-800/30">
+                      <div className="flex justify-between items-center border-b border-amber-900/30 pb-2 mb-3">
+                        <h3 className="text-amber-400 font-bold text-sm">🐴 트로이 목마</h3>
+                        <button onClick={() => handleCopy(globalResult.hybridCommerce)} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">📋 복사</button>
+                      </div>
+                      <p className="text-[9px] text-amber-500/60 mb-2">콘텐츠 훅 → 자연 전환 → 커머스 착지</p>
+                      <p className="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">{globalResult.hybridCommerce || '분석 결과가 없습니다.'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3종 대본 (15초 / 30초 / 60초) */}
+                <div className="mb-6">
+                  <h3 className="text-xs text-gray-500 font-bold mb-3 uppercase tracking-wider">📝 순수 콘텐츠 기반 — 3종 대본</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* 15초 숏폼 */}
+                    <div className="p-4 bg-gray-800 rounded-lg">
+                      <div className="flex justify-between items-center border-b border-gray-700 pb-2 mb-2">
+                        <h3 className="text-purple-400 font-bold">⏱️ 15초 컷!</h3>
+                        <button onClick={() => handleCopy(globalResult.korean_adaptation?.copies?.[0] ? `${globalResult.korean_adaptation.copies[0].headline}\n${globalResult.korean_adaptation.copies[0].body}\n${globalResult.korean_adaptation.copies[0].cta}` : '')} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">📋 복사</button>
+                      </div>
+                      <p className="text-sm text-gray-300 whitespace-pre-wrap">{globalResult.korean_adaptation?.copies?.[0] ? `${globalResult.korean_adaptation.copies[0].headline}\n\n${globalResult.korean_adaptation.copies[0].body}\n\n${globalResult.korean_adaptation.copies[0].cta}` : ''}</p>
+                    </div>
+
+                    {/* 30초 숏폼 */}
+                    <div className="p-4 bg-gray-800 rounded-lg border border-purple-500/30">
+                      <div className="flex justify-between items-center border-b border-gray-700 pb-2 mb-2">
+                        <h3 className="text-purple-400 font-bold">🎬 30초 숏폼 (추천)</h3>
+                        <button onClick={() => handleCopy(globalResult.korean_adaptation?.copies?.[1] ? `${globalResult.korean_adaptation.copies[1].headline}\n${globalResult.korean_adaptation.copies[1].body}\n${globalResult.korean_adaptation.copies[1].cta}` : '')} className="text-xs bg-purple-600 hover:bg-purple-500 px-2 py-1 rounded">📋 복사</button>
+                      </div>
+                      <p className="text-sm text-white whitespace-pre-wrap">{globalResult.korean_adaptation?.copies?.[1] ? `${globalResult.korean_adaptation.copies[1].headline}\n\n${globalResult.korean_adaptation.copies[1].body}\n\n${globalResult.korean_adaptation.copies[1].cta}` : ''}</p>
+                    </div>
+
+                    {/* 60초 숏폼 */}
+                    <div className="p-4 bg-gray-800 rounded-lg">
+                      <div className="flex justify-between items-center border-b border-gray-700 pb-2 mb-2">
+                        <h3 className="text-purple-400 font-bold">📖 60초 스토리텔링</h3>
+                        <button onClick={() => handleCopy(globalResult.korean_adaptation?.copies?.[2] ? `${globalResult.korean_adaptation.copies[2].headline}\n${globalResult.korean_adaptation.copies[2].body}\n${globalResult.korean_adaptation.copies[2].cta}` : '')} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">📋 복사</button>
+                      </div>
+                      <p className="text-sm text-gray-300 whitespace-pre-wrap">{globalResult.korean_adaptation?.copies?.[2] ? `${globalResult.korean_adaptation.copies[2].headline}\n\n${globalResult.korean_adaptation.copies[2].body}\n\n${globalResult.korean_adaptation.copies[2].cta}` : ''}</p>
+                    </div>
                   </div>
                 </div>
 
