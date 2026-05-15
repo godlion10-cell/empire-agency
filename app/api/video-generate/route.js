@@ -30,6 +30,17 @@ export async function POST(req) {
       }
 
       try {
+        const runwayBody = {
+          model: 'gen4_turbo',
+          promptText: prompt,
+          duration,
+          ratio: '720:1280', // 숏폼 세로 비율
+        };
+        // promptImage는 실제 URL이 있을 때만 포함 (undefined 전송 방지)
+        if (imageUrl && imageUrl.startsWith('http')) {
+          runwayBody.promptImage = imageUrl;
+        }
+
         const runwayRes = await fetch('https://api.dev.runwayml.com/v1/image_to_video', {
           method: 'POST',
           headers: {
@@ -37,13 +48,7 @@ export async function POST(req) {
             'Content-Type': 'application/json',
             'X-Runway-Version': '2024-11-06',
           },
-          body: JSON.stringify({
-            model: 'gen4_turbo',
-            promptImage: imageUrl || undefined,
-            promptText: prompt,
-            duration,
-            ratio: '9:16',
-          }),
+          body: JSON.stringify(runwayBody),
         });
 
         const resText = await runwayRes.text();
