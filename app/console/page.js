@@ -534,20 +534,88 @@ export default function EmpireConsole() {
         body: JSON.stringify({ prompt, imageUrl, provider, duration: 5 }),
       });
       const data = await res.json();
-      setVideoJobs(prev => prev.map(j => j.id === jobId
-        ? { ...j, status: data.success ? (data.data.status || 'complete') : 'error', result: data.data, error: data.error }
-        : j
-      ));
-      if (data.success) {
-        setToastMsg(`✅ ${provider.toUpperCase()} 영상 작업 완료`);
-      } else {
-        setToastMsg(`❌ 영상 생성 실패: ${data.error}`);
+
+      if (!data.success) {
+        // API 에러 (실제 에러 메시지 표시)
+        setVideoJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: 'error', result: data.data, error: data.error } : j));
+        setToastMsg(`❌ ${data.error}`);
+        setTimeout(() => setToastMsg(null), 5000);
+        return;
       }
-      setTimeout(() => setToastMsg(null), 3000);
+
+      const result = data.data;
+      setVideoJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: result.status, result } : j));
+
+      // Mock → 즉시 완료 (폴링 불필요)
+      if (result.provider === 'mock') {
+        setToastMsg(`⚠️ MOCK 모드 — API 키를 설정하세요`);
+        setTimeout(() => setToastMsg(null), 4000);
+        return;
+      }
+
+      // LIVE — 비동기 폴링 시작
+      if (result.status === 'processing') {
+        setToastMsg(`⏳ ${provider.toUpperCase()} 렌더링 중... (30-90초 소요)`);
+        let pollCount = 0;
+        const maxPolls = 36; // 최대 3분 (5초 × 36)
+
+        const pollInterval = setInterval(async () => {
+          pollCount++;
+          try {
+            const pollRes = await fetch(`/api/video-status?id=${result.id}&provider=${result.provider}`);
+            const pollData = await pollRes.json();
+
+            if (!pollData.success) {
+              clearInterval(pollInterval);
+              setVideoJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: 'error', error: pollData.error } : j));
+              setToastMsg(`❌ 폴링 실패: ${pollData.error}`);
+              setTimeout(() => setToastMsg(null), 5000);
+              return;
+            }
+
+            const pd = pollData.data;
+
+            // 상태 업데이트
+            setVideoJobs(prev => prev.map(j => j.id === jobId ? {
+              ...j,
+              status: pd.status,
+              progress: pd.progress || Math.min(pollCount * 3, 95),
+              result: { ...j.result, ...pd, videoUrl: pd.videoUrl },
+            } : j));
+
+            // 완료!
+            if (pd.status === 'complete' && pd.videoUrl) {
+              clearInterval(pollInterval);
+              setRenderVideo(pd.videoUrl);
+              setToastMsg(`🎉 ${provider.toUpperCase()} 영상 렌더링 완료!`);
+              setTimeout(() => setToastMsg(null), 4000);
+            }
+
+            // 에러
+            if (pd.status === 'error') {
+              clearInterval(pollInterval);
+              setToastMsg(`❌ 렌더링 실패: ${pd.message}`);
+              setTimeout(() => setToastMsg(null), 5000);
+            }
+
+            // 타임아웃
+            if (pollCount >= maxPolls) {
+              clearInterval(pollInterval);
+              setToastMsg(`⏰ 렌더링 시간 초과 (3분). 수동으로 확인하세요.`);
+              setTimeout(() => setToastMsg(null), 5000);
+            }
+          } catch (pollErr) {
+            console.error('Polling error:', pollErr);
+          }
+        }, 5000); // 5초마다 폴링
+      } else {
+        setToastMsg(`✅ ${provider.toUpperCase()} 영상 작업 완료`);
+        setTimeout(() => setToastMsg(null), 3000);
+      }
     } catch (err) {
       setVideoJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: 'error', error: err.message } : j));
-      setToastMsg(`❌ 에러: ${err.message}`);
-      setTimeout(() => setToastMsg(null), 3000);
+      setToastMsg(`❌ 네트워크 에러: ${err.message}`);
+      setTimeout(() => setToastMsg(null), 5000);
     }
   };
 

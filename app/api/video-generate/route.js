@@ -21,13 +21,19 @@ export async function POST(req) {
     console.log(`   Prompt: ${prompt.substring(0, 80)}...`);
     if (imageUrl) console.log(`   Image: ${imageUrl.substring(0, 60)}...`);
 
-    // === Runway API 시도 ===
-    if (provider === 'runway' && process.env.RUNWAY_API_KEY) {
+    // === Runway API ===
+    if (provider === 'runway') {
+      const apiKey = process.env.RUNWAY_API_KEY;
+      if (!apiKey) {
+        console.log('⚠️ RUNWAY_API_KEY 미설정');
+        return mockResponse(provider, mode, prompt, imageUrl, duration, 'RUNWAY_API_KEY가 .env.local에 설정되지 않았습니다.');
+      }
+
       try {
         const runwayRes = await fetch('https://api.dev.runwayml.com/v1/image_to_video', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${process.env.RUNWAY_API_KEY}`,
+            'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
             'X-Runway-Version': '2024-11-06',
           },
@@ -36,12 +42,15 @@ export async function POST(req) {
             promptImage: imageUrl || undefined,
             promptText: prompt,
             duration,
-            ratio: '16:9',
+            ratio: '9:16',
           }),
         });
 
+        const resText = await runwayRes.text();
+        console.log(`🎬 [RUNWAY] Status: ${runwayRes.status} | Response: ${resText.substring(0, 300)}`);
+
         if (runwayRes.ok) {
-          const data = await runwayRes.json();
+          const data = JSON.parse(resText);
           return NextResponse.json({
             success: true,
             data: {
@@ -49,19 +58,37 @@ export async function POST(req) {
               status: 'processing',
               provider: 'runway',
               mode,
-              pollUrl: `/api/video-status?id=${data.id}&provider=runway`,
-              message: `Runway ${mode} 작업이 시작되었습니다. 약 30-90초 소요됩니다.`,
+              message: `✅ Runway ${mode} 작업이 시작되었습니다. 약 30-90초 소요됩니다.`,
             }
           });
+        } else {
+          // API 호출은 됐지만 에러 반환
+          let errorDetail;
+          try { errorDetail = JSON.parse(resText); } catch { errorDetail = { message: resText }; }
+          console.error('❌ [RUNWAY] API 에러:', errorDetail);
+          return NextResponse.json({
+            success: false,
+            error: `Runway API 에러 (${runwayRes.status}): ${errorDetail.error || errorDetail.message || resText.substring(0, 200)}`,
+            detail: errorDetail,
+          }, { status: runwayRes.status });
         }
-        console.log('⚠️ Runway API 실패, Mock으로 전환');
       } catch (e) {
-        console.log('⚠️ Runway API 연결 실패:', e.message);
+        console.error('❌ [RUNWAY] 연결 실패:', e.message);
+        return NextResponse.json({
+          success: false,
+          error: `Runway 연결 실패: ${e.message}`,
+        }, { status: 502 });
       }
     }
 
-    // === Luma API 시도 ===
-    if (provider === 'luma' && process.env.LUMA_API_KEY) {
+    // === Luma API ===
+    if (provider === 'luma') {
+      const apiKey = process.env.LUMA_API_KEY;
+      if (!apiKey) {
+        console.log('⚠️ LUMA_API_KEY 미설정');
+        return mockResponse(provider, mode, prompt, imageUrl, duration, 'LUMA_API_KEY가 .env.local에 설정되지 않았습니다.');
+      }
+
       try {
         const lumaBody = {
           prompt,
@@ -78,14 +105,17 @@ export async function POST(req) {
         const lumaRes = await fetch('https://api.lumalabs.ai/dream-machine/v1/generations', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${process.env.LUMA_API_KEY}`,
+            'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(lumaBody),
         });
 
+        const resText = await lumaRes.text();
+        console.log(`🎬 [LUMA] Status: ${lumaRes.status} | Response: ${resText.substring(0, 300)}`);
+
         if (lumaRes.ok) {
-          const data = await lumaRes.json();
+          const data = JSON.parse(resText);
           return NextResponse.json({
             success: true,
             data: {
@@ -93,40 +123,55 @@ export async function POST(req) {
               status: 'processing',
               provider: 'luma',
               mode,
-              pollUrl: `/api/video-status?id=${data.id}&provider=luma`,
-              message: `Luma ${mode} 작업이 시작되었습니다.`,
+              message: `✅ Luma ${mode} 작업이 시작되었습니다.`,
             }
           });
+        } else {
+          let errorDetail;
+          try { errorDetail = JSON.parse(resText); } catch { errorDetail = { message: resText }; }
+          console.error('❌ [LUMA] API 에러:', errorDetail);
+          return NextResponse.json({
+            success: false,
+            error: `Luma API 에러 (${lumaRes.status}): ${errorDetail.error || errorDetail.message || resText.substring(0, 200)}`,
+            detail: errorDetail,
+          }, { status: lumaRes.status });
         }
-        console.log('⚠️ Luma API 실패, Mock으로 전환');
       } catch (e) {
-        console.log('⚠️ Luma API 연결 실패:', e.message);
+        console.error('❌ [LUMA] 연결 실패:', e.message);
+        return NextResponse.json({
+          success: false,
+          error: `Luma 연결 실패: ${e.message}`,
+        }, { status: 502 });
       }
     }
 
-    // === Mock Fallback ===
-    const mockId = `mock_${Date.now()}`;
-    return NextResponse.json({
-      success: true,
-      data: {
-        id: mockId,
-        status: 'complete',
-        provider: 'mock',
-        mode,
-        videoUrl: null,
-        message: `[MOCK] ${provider} API 키 미설정. 실제 배포 시 .env.local에 RUNWAY_API_KEY 또는 LUMA_API_KEY를 추가하세요.`,
-        prompt,
-        imageUrl: imageUrl || null,
-        duration,
-        mockPreview: {
-          thumbnail: imageUrl || null,
-          estimatedTime: `${duration * 6}초`,
-        }
-      }
-    });
+    // Unknown provider
+    return mockResponse(provider, mode, prompt, imageUrl, duration, `알 수 없는 provider: ${provider}`);
 
   } catch (error) {
     console.error('❌ [VIDEO-GEN] 에러:', error.message);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
+}
+
+/** Mock 응답 헬퍼 */
+function mockResponse(provider, mode, prompt, imageUrl, duration, reason) {
+  return NextResponse.json({
+    success: true,
+    data: {
+      id: `mock_${Date.now()}`,
+      status: 'complete',
+      provider: 'mock',
+      mode,
+      videoUrl: null,
+      message: `[MOCK] ${reason}`,
+      prompt,
+      imageUrl: imageUrl || null,
+      duration,
+      mockPreview: {
+        thumbnail: imageUrl || null,
+        estimatedTime: `${duration * 6}초`,
+      }
+    }
+  });
 }
