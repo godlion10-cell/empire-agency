@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { notifyStageComplete, notifyVideoComplete } from '@/lib/telegram-notify';
+import { validateVideoResponse } from '@/lib/qa-validator';
 
 /**
  * POST /api/video-generate
@@ -57,9 +58,7 @@ export async function POST(req) {
 
         if (runwayRes.ok) {
           const data = JSON.parse(resText);
-          // 📬 렌더링 시작 알림
-          notifyStageComplete(prompt.substring(0, 30), 'VIDEO', `Runway ${mode} 시작 — ID: ${data.id}`).catch(() => {});
-          return NextResponse.json({
+          const responsePayload = {
             success: true,
             data: {
               id: data.id,
@@ -68,7 +67,13 @@ export async function POST(req) {
               mode,
               message: `✅ Runway ${mode} 작업이 시작되었습니다. 약 30-90초 소요됩니다.`,
             }
-          });
+          };
+          // 🛡️ Gate 3: Video Response QC
+          const g3 = validateVideoResponse(responsePayload);
+          console.log(`🛡️ [G3-VIDEO] Runway: ${g3.pass ? '✅ PASS' : '❌ ' + g3.reason}`);
+          // 📬 렌더링 시작 알림
+          notifyStageComplete(prompt.substring(0, 30), 'VIDEO', `Runway ${mode} 시작 — ID: ${data.id}`).catch(() => {});
+          return NextResponse.json(responsePayload);
         } else {
           // API 호출은 됐지만 에러 반환
           let errorDetail;

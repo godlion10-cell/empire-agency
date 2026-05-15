@@ -3,7 +3,7 @@ import OpenAI from 'openai';
 import { GoogleGenAI } from '@google/genai';
 import { fetchTranscript } from '@/lib/youtube-transcript';
 import { buildAnalysisPayload, segmentsToPromptText, extractKeyMoments } from '@/lib/analyzer-utils';
-import { validateScript } from '@/lib/qa-validator';
+import { validateScript, withQA } from '@/lib/qa-validator';
 
 export const maxDuration = 60;
 
