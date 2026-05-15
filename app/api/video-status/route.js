@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { notifyVideoComplete } from '@/lib/telegram-notify';
 
 /**
  * GET /api/video-status?id=xxx&provider=runway|luma
@@ -44,13 +45,25 @@ export async function GET(req) {
         'FAILED': 'error',
       };
 
+      const mappedStatus = statusMap[data.status] || data.status;
+      const videoUrl = data.output?.[0] || null;
+
+      // 📨 완료 시 텔레그램 알림
+      if (mappedStatus === 'complete' && videoUrl) {
+        notifyVideoComplete(
+          searchParams.get('title') || 'Runway 영상',
+          'runway',
+          videoUrl
+        ).catch(() => {});
+      }
+
       return NextResponse.json({
         success: true,
         data: {
           id: data.id,
-          status: statusMap[data.status] || data.status,
+          status: mappedStatus,
           provider: 'runway',
-          videoUrl: data.output?.[0] || null,
+          videoUrl,
           progress: data.progress || 0,
           message: data.status === 'SUCCEEDED'
             ? '✅ 영상 렌더링 완료!'
@@ -86,13 +99,25 @@ export async function GET(req) {
         'failed': 'error',
       };
 
+      const mappedStatus = statusMap[data.state] || data.state;
+      const videoUrl = data.assets?.video || null;
+
+      // 📨 완료 시 텔레그램 알림
+      if (mappedStatus === 'complete' && videoUrl) {
+        notifyVideoComplete(
+          searchParams.get('title') || 'Luma 영상',
+          'luma',
+          videoUrl
+        ).catch(() => {});
+      }
+
       return NextResponse.json({
         success: true,
         data: {
           id: data.id,
-          status: statusMap[data.state] || data.state,
+          status: mappedStatus,
           provider: 'luma',
-          videoUrl: data.assets?.video || null,
+          videoUrl,
           progress: data.state === 'completed' ? 100 : data.state === 'dreaming' ? 50 : 10,
           message: data.state === 'completed'
             ? '✅ 영상 렌더링 완료!'
