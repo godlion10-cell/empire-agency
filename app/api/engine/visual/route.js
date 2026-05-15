@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { generateVisual, getAvailableProviders } from '@/lib/engines/visual-provider';
+import { validateVisualPrompts } from '@/lib/qa-validator';
 
 export const maxDuration = 60;
 
@@ -95,6 +96,17 @@ export async function POST(req) {
         success: false,
         error: `${provider.toUpperCase()} API 키 미설정. .env.local에 ${provider === 'ideogram' ? 'IDEOGRAM_API_KEY' : provider === 'flux' ? 'FAL_API_KEY' : 'LEONARDO_API_KEY'}를 추가하세요.`,
         availableProviders: getAvailableProviders(),
+      }, { status: 400 });
+    }
+
+    // ═══ QA Gate 2: Visual Prompt Validation ═══
+    const qaCheck = validateVisualPrompts({ [slotType]: prompt });
+    if (!qaCheck.pass) {
+      console.warn(`⚠️ [QA-GATE2] 프롬프트 검증 실패:`, qaCheck.issues);
+      return NextResponse.json({
+        success: false,
+        error: `프롬프트 QA 검증 실패: ${qaCheck.issues.join(', ')}`,
+        qa: qaCheck,
       }, { status: 400 });
     }
 

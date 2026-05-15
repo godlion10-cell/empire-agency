@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import { GoogleGenAI } from '@google/genai';
 import { fetchTranscript } from '@/lib/youtube-transcript';
 import { buildAnalysisPayload, segmentsToPromptText, extractKeyMoments } from '@/lib/analyzer-utils';
+import { validateScript } from '@/lib/qa-validator';
 
 export const maxDuration = 60;
 
@@ -239,6 +240,12 @@ TRACK 3 — HYBRID COMMERCE (트로이 목마 융합)
 
     console.log(`✅ [GLOBAL] 완료: ${parsed.detected_language} → KR, viral: ${parsed.viral_potential}/10`);
 
+    // ═══ QA Gate 1: Script Hallucination Check ═══
+    const qaResult = await validateScript(rawText, parsed);
+    if (!qaResult.pass) {
+      console.warn(`⚠️ [QA-GATE1] 환각 감지: ${qaResult.reason?.substring(0, 100)}`);
+    }
+
     return NextResponse.json({
       success: true,
       engine: 'global',
@@ -254,6 +261,8 @@ TRACK 3 — HYBRID COMMERCE (트로이 목마 융합)
           meta: adaptivePayload.meta,
           keyMoments: extractKeyMoments(adaptivePayload.segments),
         } : null,
+        // ★ QA Gate 결과
+        qa: { scriptCheck: qaResult.pass ? 'PASS' : 'FAIL', reason: qaResult.reason?.substring(0, 150) },
       },
     });
 
