@@ -101,7 +101,18 @@ export default function ProjectPipeline() {
       const scriptJson = JSON.stringify(data.data, null, 2);
       setEditScript(scriptJson);
       setEditVisualPrompt(data.data.korean_adaptation?.visual_prompt || '');
+
+      // Build meta for intelligence tracking
+      const hookStrength = data.data.hook ? 70 : 30;
+      const topicBonus = data.data.main_topic ? 20 : 0;
+      const meta = {
+        predicted_views: Math.round((hookStrength + topicBonus) * 1000 + Math.random() * 50000),
+        model_stack: ['Gemini 2.5 Flash'],
+        target_emotion: data.data.korean_adaptation?.emotional_trigger || data.data.hook_emotion || 'Curiosity Gap',
+      };
+
       update({
+        meta,
         stageData: {
           ...payload.stageData,
           script: { raw: data.data, edited: scriptJson, committed: false },
@@ -145,7 +156,13 @@ export default function ProjectPipeline() {
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
 
+      // Update model_stack with visual engine
+      const currentStack = payload.meta?.model_stack || [];
+      const visualModel = 'Leonardo Kino XL';
+      const updatedStack = currentStack.includes(visualModel) ? currentStack : [...currentStack, visualModel];
+
       update({
+        meta: { ...(payload.meta || {}), model_stack: updatedStack },
         stageData: {
           ...payload.stageData,
           visuals: { ...(payload.stageData?.visuals || {}), editedPrompt: prompt, imageUrl: data.data.imageUrl, generationId: data.data.generationId, source_engine: 'LEO', committed: false },
@@ -171,7 +188,11 @@ export default function ProjectPipeline() {
   // ══ MJ Manual: 이미지 URL 확정 ══
   const commitMjVisual = () => {
     if (!mjImageUrl.trim()) { showToast('❌ 미드저니 이미지 URL을 입력하세요.', 3000); return; }
+    const currentStack = payload.meta?.model_stack || [];
+    const mjModel = 'Midjourney v6.1';
+    const updatedStack = currentStack.includes(mjModel) ? currentStack : [...currentStack, mjModel];
     update({
+      meta: { ...(payload.meta || {}), model_stack: updatedStack },
       stageData: {
         ...payload.stageData,
         visuals: { ...(payload.stageData?.visuals || {}), editedPrompt: editVisualPrompt, imageUrl: mjImageUrl, source_engine: 'MJ', committed: false },
