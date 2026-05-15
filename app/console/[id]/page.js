@@ -23,6 +23,8 @@ export default function ProjectPipeline() {
   const [toast, setToast] = useState(null);
   const [editScript, setEditScript] = useState('');
   const [editVisualPrompt, setEditVisualPrompt] = useState('');
+  const [visualMode, setVisualMode] = useState('LEO'); // 'LEO' | 'MJ'
+  const [mjImageUrl, setMjImageUrl] = useState('');
   const saveTimer = useRef(null);
 
   const showToast = (msg, dur = 3000) => { setToast(msg); setTimeout(() => setToast(null), dur); };
@@ -146,7 +148,7 @@ export default function ProjectPipeline() {
       update({
         stageData: {
           ...payload.stageData,
-          visuals: { ...(payload.stageData?.visuals || {}), editedPrompt: prompt, imageUrl: data.data.imageUrl, generationId: data.data.generationId, committed: false },
+          visuals: { ...(payload.stageData?.visuals || {}), editedPrompt: prompt, imageUrl: data.data.imageUrl, generationId: data.data.generationId, source_engine: 'LEO', committed: false },
         },
         history: addHist('GEN_VISUALS', 'complete'),
       }, 'REVIEW_VISUALS');
@@ -160,10 +162,23 @@ export default function ProjectPipeline() {
 
   const commitVisuals = () => {
     update({
-      stageData: { ...payload.stageData, visuals: { ...payload.stageData.visuals, committed: true } },
-      history: addHist('COMPLETE', 'pipeline_done'),
+      stageData: { ...payload.stageData, visuals: { ...payload.stageData.visuals, committed: true, source_engine: visualMode } },
+      history: addHist('COMPLETE', `pipeline_done (${visualMode})`),
     }, 'COMPLETE');
     showToast('🎉 파이프라인 완료!');
+  };
+
+  // ══ MJ Manual: 이미지 URL 확정 ══
+  const commitMjVisual = () => {
+    if (!mjImageUrl.trim()) { showToast('❌ 미드저니 이미지 URL을 입력하세요.', 3000); return; }
+    update({
+      stageData: {
+        ...payload.stageData,
+        visuals: { ...(payload.stageData?.visuals || {}), editedPrompt: editVisualPrompt, imageUrl: mjImageUrl, source_engine: 'MJ', committed: false },
+      },
+      history: addHist('GEN_VISUALS', 'mj_manual_upload'),
+    }, 'REVIEW_VISUALS');
+    showToast('✅ 미드저니 이미지 등록 완료!');
   };
 
   // ══════ RENDER ══════
@@ -251,24 +266,92 @@ export default function ProjectPipeline() {
           </section>
         )}
 
-        {/* STAGE 3-4: VISUALS */}
+        {/* STAGE 3-4: VISUALS — Dual Engine Toggle */}
         {currentIdx >= 3 && (
           <section className={`p-5 rounded-xl border ${currentIdx <= 4 ? 'border-purple-600 bg-purple-900/10' : 'border-emerald-800/30 bg-emerald-900/10'}`}>
             <div className="flex justify-between items-center mb-4">
-              <h2 className="font-bold text-sm">🎨 Stage 3-4 — 비주얼</h2>
+              <h2 className="font-bold text-sm">🎨 Stage 3-4 — 비주얼 브랜딩 엔진</h2>
               <div className="flex items-center gap-2">
                 <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={payload.autoStages?.GEN_VISUALS || false} onChange={() => { const a = { ...payload.autoStages, GEN_VISUALS: !payload.autoStages?.GEN_VISUALS }; update({ autoStages: a }); }} className="accent-purple-500 w-3 h-3" /><span className="text-[9px] text-gray-500">Auto</span></label>
                 <span className={`text-[9px] px-2 py-0.5 rounded font-bold ${stageLoading === 'GEN_VISUALS' ? 'bg-purple-600 text-white animate-pulse' : visualData.committed ? 'bg-emerald-900/40 text-emerald-400' : 'bg-amber-900/40 text-amber-400'}`}>
-                  {stageLoading === 'GEN_VISUALS' ? '생성 중...' : visualData.committed ? '✓ 확정' : '검토 대기'}
+                  {stageLoading === 'GEN_VISUALS' ? '생성 중...' : visualData.committed ? `✓ ${visualData.source_engine || 'LEO'}` : '검토 대기'}
                 </span>
               </div>
             </div>
-            <textarea value={editVisualPrompt} onChange={(e) => setEditVisualPrompt(e.target.value)} disabled={visualData.committed} rows={3} className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-3 text-xs font-mono text-blue-200 focus:border-purple-500 focus:outline-none resize-y disabled:opacity-60 mb-3" />
-            {visualData.imageUrl && <div className="mb-4 p-4 bg-black/40 rounded-lg border border-purple-500/30 text-center"><img src={visualData.imageUrl} alt="VVIP" className="max-w-sm mx-auto rounded-lg shadow-2xl border border-gray-700" /><a href={visualData.imageUrl} target="_blank" rel="noopener noreferrer" className="text-[9px] text-blue-400 underline mt-2 inline-block">다운로드 ↗</a></div>}
+
+            {/* 🎨 Engine Toggle Switch */}
+            <div className="flex bg-gray-800/80 rounded-lg p-1 mb-4">
+              <button onClick={() => setVisualMode('LEO')} className={`flex-1 px-4 py-2 rounded-md text-xs font-bold transition-all ${visualMode === 'LEO' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30' : 'text-gray-400 hover:text-white'}`}>
+                ⚡ Auto (Leonardo.ai)
+              </button>
+              <button onClick={() => setVisualMode('MJ')} className={`flex-1 px-4 py-2 rounded-md text-xs font-bold transition-all ${visualMode === 'MJ' ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/30' : 'text-gray-400 hover:text-white'}`}>
+                👑 Premium (Midjourney)
+              </button>
+            </div>
+
+            {/* Prompt Editor (shared) */}
+            <div className="mb-4">
+              <p className="text-[9px] text-gray-500 mb-1">📝 비주얼 프롬프트 (편집 가능):</p>
+              <textarea value={editVisualPrompt} onChange={(e) => setEditVisualPrompt(e.target.value)} disabled={visualData.committed} rows={3} className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-3 text-xs font-mono text-blue-200 focus:border-purple-500 focus:outline-none resize-y disabled:opacity-60" />
+            </div>
+
+            {/* MODE A: Leonardo Auto */}
+            {visualMode === 'LEO' && (
+              <div className="p-4 bg-blue-900/10 border border-blue-800/30 rounded-lg mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-blue-400 text-sm font-bold">⚡ Leonardo.ai 자동 생성</span>
+                  <span className="text-[8px] text-blue-500/50 bg-blue-900/30 px-1.5 py-0.5 rounded">Arsenal Injector · Kino XL · PhotoReal v2</span>
+                </div>
+                <p className="text-[10px] text-gray-500 mb-3">API가 9:16 시네마틱 이미지를 즉시 생성합니다. Arsenal 태그 (35mm, f/1.8, 8k, UE5) 자동 주입.</p>
+                <button onClick={runGenVisuals} disabled={stageLoading || visualData.committed} className="w-full py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 disabled:opacity-40 rounded-lg font-bold text-sm transition-all shadow-lg shadow-blue-900/20">
+                  {stageLoading === 'GEN_VISUALS' ? '⏳ 생성 중... (최대 60초)' : '💎 VVIP 비주얼 자동 생성'}
+                </button>
+              </div>
+            )}
+
+            {/* MODE B: Midjourney Manual */}
+            {visualMode === 'MJ' && (
+              <div className="p-4 bg-purple-900/10 border border-purple-800/30 rounded-lg mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-purple-400 text-sm font-bold">👑 Midjourney Premium Manual</span>
+                  <span className="text-[8px] text-purple-500/50 bg-purple-900/30 px-1.5 py-0.5 rounded">MJ v6.1 · Discord</span>
+                </div>
+                <p className="text-[10px] text-gray-500 mb-3">미드저니에서 최상의 퀸리티를 직접 뽑아주세요. 프롬프트를 복사하고 결과 URL을 붙여넣으세요.</p>
+
+                {/* Step 1: Copy Prompt */}
+                <button onClick={() => { const p = editVisualPrompt + ' --ar 9:16 --v 6.1 --style raw'; navigator.clipboard.writeText(p); showToast('📋 MJ 프롬프트 복사 완료! Discord에 붙여넣기 하세요.'); }} className="w-full py-2.5 bg-purple-700 hover:bg-purple-600 rounded-lg text-sm font-bold mb-3 transition-all">
+                  📋 미드저니 프롬프트 복사 (--ar 9:16 --v 6.1 자동 추가)
+                </button>
+
+                {/* Step 2: Paste URL */}
+                <div className="flex gap-2">
+                  <input value={mjImageUrl} onChange={(e) => setMjImageUrl(e.target.value)} placeholder="생성된 MJ 이미지 URL 입력 (https://cdn.midjourney.com/...)" className="flex-1 bg-black/50 border border-gray-700 rounded-lg px-3 py-2.5 text-xs focus:border-purple-500 focus:outline-none" disabled={visualData.committed} />
+                  <button onClick={commitMjVisual} disabled={!mjImageUrl.trim() || visualData.committed} className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 rounded-lg text-xs font-bold transition-all">
+                    🔗 등록
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Generated Image Preview */}
+            {visualData.imageUrl && (
+              <div className="mb-4 p-4 bg-black/40 rounded-lg border border-purple-500/30 text-center">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <span className={`text-[9px] px-2 py-0.5 rounded font-bold ${visualData.source_engine === 'MJ' ? 'bg-purple-900/40 text-purple-400' : 'bg-blue-900/40 text-blue-400'}`}>
+                    {visualData.source_engine === 'MJ' ? '👑 Midjourney' : '⚡ Leonardo.ai'}
+                  </span>
+                </div>
+                <img src={visualData.imageUrl} alt="Visual" className="max-w-sm mx-auto rounded-lg shadow-2xl border border-gray-700" />
+                <a href={visualData.imageUrl} target="_blank" rel="noopener noreferrer" className="text-[9px] text-blue-400 underline mt-2 inline-block">다운로드 ↗</a>
+              </div>
+            )}
+
             {stageLoading === 'GEN_VISUALS' && <div className="py-12 text-center"><span className="text-4xl animate-bounce block mb-3">🎨</span><p className="text-sm text-gray-400 animate-pulse">Leonardo.ai 생성 중...</p></div>}
+
+            {/* Commit */}
             <div className="flex gap-2">
-              <button onClick={runGenVisuals} disabled={stageLoading} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 rounded-lg text-xs font-bold">🔄 재생성</button>
-              {visualData.imageUrl && !visualData.committed && <button onClick={commitVisuals} className="px-6 py-2 bg-gradient-to-r from-emerald-600 to-green-600 rounded-lg text-xs font-bold text-white">✅ 확정 → 완료</button>}
+              {visualMode === 'LEO' && <button onClick={runGenVisuals} disabled={stageLoading} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 rounded-lg text-xs font-bold">🔄 재생성</button>}
+              {visualData.imageUrl && !visualData.committed && <button onClick={commitVisuals} className="px-6 py-2 bg-gradient-to-r from-emerald-600 to-green-600 rounded-lg text-xs font-bold text-white">✅ 비주얼 확정 → 완료</button>}
             </div>
           </section>
         )}
