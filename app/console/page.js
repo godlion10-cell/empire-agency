@@ -10,7 +10,7 @@ export default function EmpireConsole() {
   const [masterInput, setMasterInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [engineResult, setEngineResult] = useState(null);
-  const [activeEngine, setActiveEngine] = useState('recreate'); // recreate | summary | commerce
+  const [activeEngine, setActiveEngine] = useState('recreate'); // recreate | summary | commerce | global | keyword
 
   // Master DNA — 전역 대시보드 상태 (모든 하위 버튼이 참조)
   const [masterDNA, setMasterDNA] = useState({
@@ -53,6 +53,11 @@ export default function EmpireConsole() {
   const [radarVideos, setRadarVideos] = useState([]);
   const [radarScanning, setRadarScanning] = useState(false);
   const [absorbingId, setAbsorbingId] = useState(null); // 현재 DNA 추출 중인 videoId
+
+  // ★ Golden Keyword Discovery 상태
+  const [kwSeed, setKwSeed] = useState('');
+  const [kwResults, setKwResults] = useState([]);
+  const [kwScanning, setKwScanning] = useState(false);
 
   // ★ 각 액션별 인라인 진행 + 결과 상태
   const [actionStates, setActionStates] = useState({
@@ -236,6 +241,59 @@ export default function EmpireConsole() {
     } finally {
       setAbsorbingId(null);
     }
+  };
+
+  // ★ Golden Keyword Discovery — 황금 키워드 발굴
+  const handleKeywordDiscovery = async () => {
+    if (!kwSeed.trim() || kwScanning) return;
+    setKwScanning(true);
+    setKwResults([]);
+    try {
+      const res = await fetch('/api/engine/keyword-scorer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seed: kwSeed.trim() }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(`HTTP ${res.status}: ${err.error || res.statusText}`);
+      }
+      const data = await res.json();
+      if (data.success) {
+        setKwResults(data.data.keywords || []);
+        setToastMsg(`✨ ${data.data.total}개 글로벌 키워드 발굴 완료 (황금 ${data.data.goldenCount}개 · US:${data.data.regionCounts?.US||0} JP:${data.data.regionCounts?.JP||0} CN:${data.data.regionCounts?.CN||0} KR:${data.data.regionCounts?.KR||0})`);
+        setTimeout(() => setToastMsg(null), 4000);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (e) {
+      setToastMsg(`❌ 키워드 발굴 실패: ${e.message}`);
+      setTimeout(() => setToastMsg(null), 5000);
+    } finally {
+      setKwScanning(false);
+    }
+  };
+
+  // ★ Push to Global Radar — 황금 키워드를 레이더로 즉시 전송 (시장 자동 설정)
+  const handlePushToRadar = (keyword, region) => {
+    setRadarKeyword(keyword);
+    // 시장별 자동 지역 설정
+    if (region && ['US', 'JP', 'CN', 'KR', 'GB', 'IN', 'DE', 'FR', 'BR', 'TH', 'VN'].includes(region)) {
+      setRadarRegion(region);
+    }
+    setActiveEngine('global');
+    setGlobalTab('RADAR');
+    const flag = region === 'US' ? '🇺🇸' : region === 'JP' ? '🇯🇵' : region === 'CN' ? '🇨🇳' : region === 'KR' ? '🇰🇷' : '🌍';
+    setToastMsg(`🚀 ${flag} "${keyword}" → Global Radar (${region || 'AUTO'}) 전송 완료! Scan 버튼을 누르세요.`);
+    setTimeout(() => setToastMsg(null), 3000);
+  };
+
+  // ★ 클립보드 복사 헬퍼
+  const handleCopy = (text) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setToastMsg('✅ 클립보드에 복사 완료!');
+    setTimeout(() => setToastMsg(null), 2000);
   };
 
   // 엔진 2: 원본 숏폼 요약 — 인라인 진행 표시
@@ -574,15 +632,15 @@ export default function EmpireConsole() {
       </header>
 
       {/* ═══ Full-screen 로딩 오버레이 (Global Engine) ═══ */}
-      {(globalProcessing || absorbingId || radarScanning) && (
+      {(globalProcessing || absorbingId || radarScanning || kwScanning) && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className="flex flex-col items-center p-8 bg-gray-900 border border-purple-500 rounded-2xl shadow-2xl max-w-md mx-4">
             <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
             <h2 className="mt-6 text-2xl font-bold text-white text-center">
-              {absorbingId ? '🧬 글로벌 DNA 심층 추출 중...' : radarScanning ? '📡 글로벌 레이더 스캔 중...' : '🔥 글로벌 DNA 심층 추출 중...'}
+              {kwScanning ? '✨ 황금 키워드 발굴 중...' : absorbingId ? '🧬 글로벌 DNA 심층 추출 중...' : radarScanning ? '📡 글로벌 레이더 스캔 중...' : '🔥 글로벌 DNA 심층 추출 중...'}
             </h2>
             <p className="mt-2 text-purple-300 text-center">
-              {absorbingId ? '해외 VVIP 대본을 한국형 타겟으로 재창조하고 있습니다.' : radarScanning ? '전 세계 트렌드를 실시간 스캔하고 있습니다.' : '원본 콘텐츠를 분석하고 심리 어댑터를 적용 중입니다.'}
+              {kwScanning ? 'YouTube 연관 검색어를 수집하고 Gemini AI가 수익성을 분석 중입니다.' : absorbingId ? '해외 VVIP 대본을 한국형 타겟으로 재창조하고 있습니다.' : radarScanning ? '전 세계 트렌드를 실시간 스캔하고 있습니다.' : '원본 콘텐츠를 분석하고 심리 어댑터를 적용 중입니다.'}
             </p>
             <p className="mt-1 text-sm text-gray-400">(최대 10~15초 소요)</p>
           </div>
@@ -600,6 +658,7 @@ export default function EmpireConsole() {
             { id: 'summary', icon: '✂️', label: '원본 숏폼 요약', color: 'cyan' },
             { id: 'commerce', icon: '🛍️', label: '커머스 맞춤 광고', color: 'pink' },
             { id: 'global', icon: '🌍', label: 'Global Finder', color: 'violet' },
+            { id: 'keyword', icon: '🔑', label: 'Golden Keyword', color: 'yellow' },
           ].map((engine) => (
             <button
               key={engine.id}
@@ -610,9 +669,9 @@ export default function EmpireConsole() {
                   : 'bg-gray-800/50 border-gray-700 text-gray-400 hover:border-gray-600'
               }`}
               style={activeEngine === engine.id ? {
-                background: engine.id === 'recreate' ? 'rgba(217,119,6,0.15)' : engine.id === 'summary' ? 'rgba(6,182,212,0.15)' : engine.id === 'commerce' ? 'rgba(236,72,153,0.15)' : 'rgba(139,92,246,0.15)',
-                borderColor: engine.id === 'recreate' ? '#d97706' : engine.id === 'summary' ? '#06b6d4' : engine.id === 'commerce' ? '#ec4899' : '#8b5cf6',
-                color: engine.id === 'recreate' ? '#fbbf24' : engine.id === 'summary' ? '#22d3ee' : engine.id === 'commerce' ? '#f472b6' : '#a78bfa',
+                background: engine.id === 'recreate' ? 'rgba(217,119,6,0.15)' : engine.id === 'summary' ? 'rgba(6,182,212,0.15)' : engine.id === 'commerce' ? 'rgba(236,72,153,0.15)' : engine.id === 'keyword' ? 'rgba(234,179,8,0.15)' : 'rgba(139,92,246,0.15)',
+                borderColor: engine.id === 'recreate' ? '#d97706' : engine.id === 'summary' ? '#06b6d4' : engine.id === 'commerce' ? '#ec4899' : engine.id === 'keyword' ? '#eab308' : '#8b5cf6',
+                color: engine.id === 'recreate' ? '#fbbf24' : engine.id === 'summary' ? '#22d3ee' : engine.id === 'commerce' ? '#f472b6' : engine.id === 'keyword' ? '#facc15' : '#a78bfa',
               } : {}}
             >
               {engine.icon} {engine.label}
@@ -1032,109 +1091,184 @@ export default function EmpireConsole() {
             {/* ═══ Global DNA 추출 결과 패널 ═══ */}
             {globalResult && !globalProcessing && !absorbingId && (
               <div className="mt-8 p-6 bg-gray-900 border border-purple-500 rounded-xl shadow-2xl">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl text-white font-bold">🔥 글로벌 DNA 심층 추출 완료</h2>
+                
+                {/* 상단 헤더 및 핵심 훅(Hook) */}
+                <div className="mb-6">
+                  <h2 className="text-2xl text-white font-bold mb-2">🔥 글로벌 DNA 심층 추출 완료</h2>
+                  <p className="text-gray-400 italic">" {globalResult.korean_adaptation?.hook || '분석된 후킹 포인트가 여기에 표시됩니다.'} "</p>
+                </div>
+
+                {/* 3종 대본 (15초 / 30초 / 60초) 나열 구역 */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  {/* 15초 숏폼 */}
+                  <div className="p-4 bg-gray-800 rounded-lg">
+                    <div className="flex justify-between items-center border-b border-gray-700 pb-2 mb-2">
+                      <h3 className="text-purple-400 font-bold">⏱️ 15초 컷!</h3>
+                      <button onClick={() => handleCopy(globalResult.korean_adaptation?.copies?.[0] ? `${globalResult.korean_adaptation.copies[0].headline}\n${globalResult.korean_adaptation.copies[0].body}\n${globalResult.korean_adaptation.copies[0].cta}` : '')} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">📋 복사</button>
+                    </div>
+                    <p className="text-sm text-gray-300 whitespace-pre-wrap">{globalResult.korean_adaptation?.copies?.[0] ? `${globalResult.korean_adaptation.copies[0].headline}\n\n${globalResult.korean_adaptation.copies[0].body}\n\n${globalResult.korean_adaptation.copies[0].cta}` : ''}</p>
+                  </div>
+
+                  {/* 30초 숏폼 */}
+                  <div className="p-4 bg-gray-800 rounded-lg border border-purple-500/30">
+                    <div className="flex justify-between items-center border-b border-gray-700 pb-2 mb-2">
+                      <h3 className="text-purple-400 font-bold">🎬 30초 숏폼 (추천)</h3>
+                      <button onClick={() => handleCopy(globalResult.korean_adaptation?.copies?.[1] ? `${globalResult.korean_adaptation.copies[1].headline}\n${globalResult.korean_adaptation.copies[1].body}\n${globalResult.korean_adaptation.copies[1].cta}` : '')} className="text-xs bg-purple-600 hover:bg-purple-500 px-2 py-1 rounded">📋 복사</button>
+                    </div>
+                    <p className="text-sm text-white whitespace-pre-wrap">{globalResult.korean_adaptation?.copies?.[1] ? `${globalResult.korean_adaptation.copies[1].headline}\n\n${globalResult.korean_adaptation.copies[1].body}\n\n${globalResult.korean_adaptation.copies[1].cta}` : ''}</p>
+                  </div>
+
+                  {/* 60초 숏폼 */}
+                  <div className="p-4 bg-gray-800 rounded-lg">
+                    <div className="flex justify-between items-center border-b border-gray-700 pb-2 mb-2">
+                      <h3 className="text-purple-400 font-bold">📖 60초 스토리텔링</h3>
+                      <button onClick={() => handleCopy(globalResult.korean_adaptation?.copies?.[2] ? `${globalResult.korean_adaptation.copies[2].headline}\n${globalResult.korean_adaptation.copies[2].body}\n${globalResult.korean_adaptation.copies[2].cta}` : '')} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">📋 복사</button>
+                    </div>
+                    <p className="text-sm text-gray-300 whitespace-pre-wrap">{globalResult.korean_adaptation?.copies?.[2] ? `${globalResult.korean_adaptation.copies[2].headline}\n\n${globalResult.korean_adaptation.copies[2].body}\n\n${globalResult.korean_adaptation.copies[2].cta}` : ''}</p>
+                  </div>
+                </div>
+
+                {/* 비주얼 프롬프트 */}
+                <div className="p-5 bg-blue-900/20 border border-blue-500 rounded-lg">
+                  <div className="flex justify-between items-center mb-3 border-b border-blue-800/50 pb-2">
+                    <h3 className="text-blue-400 font-bold text-lg">🎨 비주얼 프롬프트 (시네마틱)</h3>
+                    <button onClick={() => handleCopy(globalResult.korean_adaptation?.visual_prompt)} className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded">
+                      📋 프롬프트 복사
+                    </button>
+                  </div>
+                  <p className="text-blue-200 font-mono text-sm break-all">{globalResult.korean_adaptation?.visual_prompt}</p>
+                </div>
+                
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 엔진 E: Golden Keyword Discovery */}
+        {activeEngine === 'keyword' && (
+          <div>
+            <p className="text-[10px] text-yellow-400 mb-3 font-medium">✨ 한국어 씨앗 키워드를 입력하면 Gemini AI가 미국·일본·중국·한국 4개 시장의 현지어 바이럴 키워드를 발굴합니다. 황금 키워드를 Global Radar로 즉시 전송하세요!</p>
+            <div className="flex flex-col md:flex-row gap-3 mb-5">
+              <input
+                type="text"
+                value={kwSeed}
+                onChange={(e) => setKwSeed(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !kwScanning && kwSeed && handleKeywordDiscovery()}
+                placeholder="핵심 씨앗 키워드 입력 (예: 부업, AI 마케팅, 부동산 투자)"
+                className="flex-1 bg-black border border-gray-700 rounded-lg p-3.5 text-sm focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/20 outline-none transition-all placeholder-gray-600"
+              />
+              <button
+                disabled={kwScanning || !kwSeed.trim()}
+                onClick={handleKeywordDiscovery}
+                className={`px-8 py-3.5 rounded-lg font-bold text-sm whitespace-nowrap transition-all ${
+                  kwScanning
+                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed animate-pulse'
+                    : !kwSeed.trim()
+                    ? 'bg-gray-800 text-yellow-700 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-yellow-600 to-amber-500 hover:from-yellow-500 hover:to-amber-400 text-black shadow-lg shadow-yellow-900/30'
+                }`}
+              >
+                {kwScanning ? '⏳ 글로벌 AI 분석 중...' : '✨ 글로벌 황금 키워드 발굴'}
+              </button>
+            </div>
+
+            {/* 특성 카드 */}
+            <div className="grid grid-cols-4 gap-3 mb-5">
+              <div className="bg-black/40 p-3 rounded-lg border border-gray-800 text-center">
+                <p className="text-yellow-400 text-xs font-bold">🇺🇸 US Market</p>
+                <p className="text-[9px] text-gray-500 mt-1">영어 YouTube 키워드</p>
+              </div>
+              <div className="bg-black/40 p-3 rounded-lg border border-gray-800 text-center">
+                <p className="text-yellow-400 text-xs font-bold">🇯🇵 JP Market</p>
+                <p className="text-[9px] text-gray-500 mt-1">일본어 YouTube 키워드</p>
+              </div>
+              <div className="bg-black/40 p-3 rounded-lg border border-gray-800 text-center">
+                <p className="text-yellow-400 text-xs font-bold">🇨🇳 CN Market</p>
+                <p className="text-[9px] text-gray-500 mt-1">중국어 TikTok/抖音</p>
+              </div>
+              <div className="bg-black/40 p-3 rounded-lg border border-gray-800 text-center">
+                <p className="text-yellow-400 text-xs font-bold">🇰🇷 KR Market</p>
+                <p className="text-[9px] text-gray-500 mt-1">한국어 YouTube 키워드</p>
+              </div>
+            </div>
+
+            {/* ═══ 키워드 분석 결과 ═══ */}
+            {kwResults.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-yellow-400 text-xs font-bold">✨ {kwResults.length}개 글로벌 키워드 발굴 완료 — 수익성 높은 순</p>
                   <button
-                    onClick={() => { navigator.clipboard.writeText(JSON.stringify(globalResult, null, 2)); setToastMsg('✅ 전체 JSON 복사 완료'); setTimeout(() => setToastMsg(null), 2000); }}
-                    className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs font-bold rounded transition-colors"
+                    onClick={() => { navigator.clipboard.writeText(JSON.stringify(kwResults, null, 2)); setToastMsg('✅ 키워드 JSON 전체 복사 완료'); setTimeout(() => setToastMsg(null), 2000); }}
+                    className="text-[9px] text-yellow-500 hover:text-yellow-400 bg-yellow-900/20 px-2 py-1 rounded border border-yellow-800/30"
                   >📋 JSON 전체 복사</button>
                 </div>
 
-                {/* 언어 감지 + Viral 배지 */}
-                <div className="flex items-center gap-3 mb-5 p-3 bg-black/30 rounded-lg border border-gray-800">
-                  <span className="px-3 py-1 rounded-lg bg-violet-900/50 text-violet-300 font-bold text-sm">{globalResult.detected_language}</span>
-                  <span className="text-gray-500 text-lg">→</span>
-                  <span className="px-3 py-1 rounded-lg bg-green-900/50 text-green-300 font-bold text-sm">KR 🇰🇷</span>
-                  {globalResult.viral_potential && (
-                    <span className={`ml-auto px-3 py-1 rounded-lg font-bold text-sm ${globalResult.viral_potential >= 8 ? 'bg-red-900/50 text-red-300' : globalResult.viral_potential >= 6 ? 'bg-amber-900/50 text-amber-300' : 'bg-gray-700 text-gray-400'}`}>
-                      🔥 Viral {globalResult.viral_potential}/10
-                    </span>
-                  )}
-                </div>
+                {kwResults.map((item, idx) => {
+                  const isGolden = item.competition === '하' && (item.profitability || 0) >= 8;
+                  const profColor = (item.profitability || 0) >= 8 ? 'text-red-400' : (item.profitability || 0) >= 6 ? 'text-amber-400' : 'text-gray-400';
+                  const compColor = item.competition === '하' ? 'bg-green-900/40 text-green-300 border-green-700/50' : item.competition === '중' ? 'bg-amber-900/40 text-amber-300 border-amber-700/50' : 'bg-red-900/40 text-red-300 border-red-700/50';
+                  const regionFlag = item.region === 'US' ? '🇺🇸' : item.region === 'JP' ? '🇯🇵' : item.region === 'CN' ? '🇨🇳' : '🇰🇷';
+                  const regionBgColor = item.region === 'US' ? 'bg-blue-900/40 text-blue-300 border-blue-700/50' : item.region === 'JP' ? 'bg-rose-900/40 text-rose-300 border-rose-700/50' : item.region === 'CN' ? 'bg-red-900/40 text-red-300 border-red-700/50' : 'bg-green-900/40 text-green-300 border-green-700/50';
 
-                {/* 원본 요약 */}
-                {globalResult.original_summary && (
-                  <p className="text-gray-400 italic text-sm mb-5 px-1">{globalResult.original_summary}</p>
-                )}
-
-                {/* 한국형 제목 + Hook */}
-                {globalResult.korean_adaptation && (
-                  <div className="mb-5 p-4 bg-black/30 rounded-lg border border-violet-900/30">
-                    <p className="text-white font-bold text-lg">{globalResult.korean_adaptation.title}</p>
-                    <p className="text-violet-300 text-sm mt-2">🎯 Hook: {globalResult.korean_adaptation.hook}</p>
-                  </div>
-                )}
-
-                {/* 1. 30초 숏폼 대본 (ElevenLabs 용) */}
-                {globalResult.korean_adaptation?.copies?.[1] && (
-                  <div className="mb-6 p-5 bg-gray-800 rounded-lg">
-                    <div className="flex justify-between items-center mb-3 border-b border-gray-700 pb-2">
-                      <h3 className="text-purple-400 font-bold text-lg">📝 30초 숏폼 대본 (한국어 현지화)</h3>
-                      <button
-                        onClick={() => {
-                          const c = globalResult.korean_adaptation.copies[1];
-                          const script = `${c.headline}\n\n${c.body}\n\n${c.cta}`;
-                          navigator.clipboard.writeText(script);
-                          setToastMsg('✅ 30초 대본 클립보드 복사 완료!'); setTimeout(() => setToastMsg(null), 2000);
-                        }}
-                        className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold rounded transition-colors"
-                      >📋 대본 복사하기</button>
-                    </div>
-                    <p className="text-white whitespace-pre-wrap leading-relaxed">
-                      <span className="text-purple-300 font-bold">{globalResult.korean_adaptation.copies[1].headline}</span>
-                      {'\n\n'}{globalResult.korean_adaptation.copies[1].body}
-                      {'\n\n'}<span className="text-purple-400 font-medium">{globalResult.korean_adaptation.copies[1].cta}</span>
-                    </p>
-                  </div>
-                )}
-
-                {/* 전체 3종 카피 (15초/30초/60초) */}
-                <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {globalResult.korean_adaptation?.copies?.map((copy, i) => (
-                    <div key={i} className="p-4 bg-gray-800/60 rounded-lg border border-gray-700">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="px-2 py-0.5 rounded bg-violet-900/40 text-violet-300 font-bold text-[10px]">⏱️ {copy.duration}</span>
-                        <button onClick={() => {
-                          navigator.clipboard.writeText(`${copy.headline}\n${copy.body}\n${copy.cta}`);
-                          setToastMsg(`✅ ${copy.duration} 카피 복사`); setTimeout(() => setToastMsg(null), 2000);
-                        }} className="text-[10px] text-gray-500 hover:text-violet-400">📋 복사</button>
+                  return (
+                    <div
+                      key={idx}
+                      className={`p-4 rounded-xl border transition-all ${
+                        isGolden
+                          ? 'bg-yellow-900/15 border-yellow-500/60 shadow-[0_0_15px_rgba(234,179,8,0.15)] hover:shadow-[0_0_20px_rgba(234,179,8,0.25)]'
+                          : 'bg-gray-800/60 border-gray-700 hover:border-gray-600'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                            {isGolden && <span className="text-yellow-400 text-sm animate-pulse">⭐</span>}
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-bold border ${regionBgColor}`}>{regionFlag} {item.region}</span>
+                            <span className="text-white font-bold text-sm">{item.globalKeyword}</span>
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-bold border ${compColor}`}>경쟁 {item.competition}</span>
+                            <span className={`font-black text-sm ${profColor}`}>{item.profitability || 0}점</span>
+                            {isGolden && <span className="px-1.5 py-0.5 bg-yellow-500/20 text-yellow-300 text-[8px] font-bold rounded border border-yellow-500/30">★ GOLDEN</span>}
+                          </div>
+                          <p className="text-[11px] text-purple-300 font-semibold mb-1">💡 {item.koMeaning}</p>
+                          <p className="text-[11px] text-gray-400 leading-relaxed mb-2">🧠 {item.psychology}</p>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[9px] text-gray-600">🎯 Hook:</span>
+                            <p className="text-[11px] text-violet-300 italic">" {item.targetHook} "</p>
+                          </div>
+                          {/* 수익성 바 */}
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="text-[8px] text-gray-600">수익성:</span>
+                            <div className="flex-1 bg-gray-800 h-1.5 rounded-full overflow-hidden max-w-[200px]">
+                              <div
+                                className={`h-full rounded-full transition-all duration-700 ${(item.profitability || 0) >= 8 ? 'bg-gradient-to-r from-yellow-500 to-red-500' : (item.profitability || 0) >= 6 ? 'bg-gradient-to-r from-amber-600 to-amber-400' : 'bg-gray-600'}`}
+                                style={{ width: `${(item.profitability || 0) * 10}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-[9px] font-bold text-gray-400">{item.profitability}/10</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-1.5 shrink-0">
+                          <button
+                            onClick={() => handlePushToRadar(item.globalKeyword, item.region)}
+                            className={`px-3 py-2 rounded-lg text-[10px] font-bold transition-all border ${
+                              isGolden
+                                ? 'bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white border-violet-500 shadow-lg shadow-violet-900/30'
+                                : 'bg-gray-700 hover:bg-violet-900/30 text-gray-300 hover:text-violet-300 border-gray-600 hover:border-violet-600'
+                            }`}
+                          >
+                            {regionFlag} Radar 🚀
+                          </button>
+                          <button
+                            onClick={() => handleCopy(item.targetHook)}
+                            className="px-3 py-2 rounded-lg text-[10px] font-bold bg-gray-700 hover:bg-gray-600 text-gray-300 border border-gray-600 transition-all"
+                          >
+                            📋 Hook 복사
+                          </button>
+                        </div>
                       </div>
-                      <p className="text-white font-bold text-sm">{copy.headline}</p>
-                      <p className="text-gray-300 text-[11px] mt-1.5 leading-relaxed">{copy.body}</p>
-                      <p className="text-violet-400 text-[11px] mt-1.5 font-medium">{copy.cta}</p>
                     </div>
-                  ))}
-                </div>
-
-                {/* 2. 비주얼 프롬프트 (Midjourney / Luma 용) */}
-                {globalResult.korean_adaptation?.visual_prompt && (
-                  <div className="mb-6 p-5 bg-blue-900/20 border border-blue-500 rounded-lg">
-                    <div className="flex justify-between items-center mb-3 border-b border-blue-800/50 pb-2">
-                      <h3 className="text-blue-400 font-bold text-lg">🎨 비주얼 프롬프트 (시네마틱)</h3>
-                      <button
-                        onClick={() => { navigator.clipboard.writeText(globalResult.korean_adaptation.visual_prompt); setToastMsg('✅ MJ 프롬프트 복사 완료!'); setTimeout(() => setToastMsg(null), 2000); }}
-                        className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded transition-colors"
-                      >📋 프롬프트 복사하기</button>
-                    </div>
-                    <p className="text-blue-200 font-mono text-sm break-all leading-relaxed select-all">{globalResult.korean_adaptation.visual_prompt}</p>
-                  </div>
-                )}
-
-                {/* 심리 기법 + 키워드 */}
-                <div className="flex flex-col gap-2">
-                  {globalResult.psychological_triggers?.length > 0 && (
-                    <div className="flex gap-1.5 flex-wrap items-center">
-                      <span className="text-[10px] text-gray-500 mr-1">🧠 심리 기법:</span>
-                      {globalResult.psychological_triggers.map((t, i) => <span key={i} className="px-2 py-0.5 bg-purple-900/30 text-purple-300 rounded text-[10px]">{t}</span>)}
-                    </div>
-                  )}
-                  {globalResult.keywords?.length > 0 && (
-                    <div className="flex gap-1.5 flex-wrap items-center">
-                      <span className="text-[10px] text-gray-500 mr-1">🏷️ 키워드:</span>
-                      {globalResult.keywords.map((k, i) => <span key={i} className="px-2 py-0.5 bg-violet-900/30 text-violet-300 rounded text-[10px]">{k}</span>)}
-                    </div>
-                  )}
-                </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1159,9 +1293,10 @@ export default function EmpireConsole() {
               activeEngine === 'recreate' ? 'bg-amber-900/30 text-amber-400' :
               activeEngine === 'summary' ? 'bg-cyan-900/30 text-cyan-400' :
               activeEngine === 'global' ? 'bg-violet-900/30 text-violet-400' :
+              activeEngine === 'keyword' ? 'bg-yellow-900/30 text-yellow-400' :
               'bg-pink-900/30 text-pink-400'
             }`}>
-              {activeEngine === 'recreate' ? '🚀 재창조 모드' : activeEngine === 'summary' ? '✂️ 요약 모드' : activeEngine === 'global' ? '🌍 글로벌 모드' : '🛍️ 커머스 모드'}
+              {activeEngine === 'recreate' ? '🚀 재창조 모드' : activeEngine === 'summary' ? '✂️ 요약 모드' : activeEngine === 'global' ? '🌍 글로벌 모드' : activeEngine === 'keyword' ? '🔑 키워드 모드' : '🛍️ 커머스 모드'}
             </span>
           </div>
           <div className="flex gap-2 flex-wrap">
