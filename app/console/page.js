@@ -60,6 +60,10 @@ export default function EmpireConsole() {
   const [kwResults, setKwResults] = useState([]);
   const [kwScanning, setKwScanning] = useState(false);
 
+  // ★ Arsenal Injector — VVIP 비주얼 생성
+  const [vvipGenerating, setVvipGenerating] = useState(false);
+  const [vvipImage, setVvipImage] = useState(null);
+
   // ★ 각 액션별 인라인 진행 + 결과 상태
   const [actionStates, setActionStates] = useState({
     summary: { loading: false, percent: 0, status: '' },
@@ -293,6 +297,38 @@ export default function EmpireConsole() {
     const flag = region === 'US' ? '🇺🇸' : region === 'JP' ? '🇯🇵' : region === 'CN' ? '🇨🇳' : region === 'KR' ? '🇰🇷' : '🌍';
     setToastMsg(`🚀 ${flag} "${keyword}" → Global Radar (${region || 'AUTO'}) 전송 완료! Scan 버튼을 누르세요.`);
     setTimeout(() => setToastMsg(null), 3000);
+  };
+
+  // ★ Arsenal Injector — VVIP 시네마틱 비주얼 자동 생성
+  const handleVVIPGenerate = async (basePrompt) => {
+    if (!basePrompt || vvipGenerating) return;
+    setVvipGenerating(true);
+    setVvipImage(null);
+    setToastMsg('🎨 VVIP Arsenal Injector 가동 중... (최대 60초)');
+    try {
+      const res = await fetch('/api/engine/auto-visual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ baseVisualPrompt: basePrompt, aspectRatio: '9:16' }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      if (data.success) {
+        setVvipImage(data.data);
+        setToastMsg('✅ VVIP 시네마틱 비주얼 생성 완료!');
+        setTimeout(() => setToastMsg(null), 3000);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (e) {
+      setToastMsg(`❌ VVIP 생성 실패: ${e.message}`);
+      setTimeout(() => setToastMsg(null), 5000);
+    } finally {
+      setVvipGenerating(false);
+    }
   };
 
   // ★ 클립보드 복사 헬퍼
@@ -1217,15 +1253,41 @@ export default function EmpireConsole() {
                   </div>
                 </div>
 
-                {/* 비주얼 프롬프트 */}
+                {/* 비주얼 프롬프트 + Arsenal Injector */}
                 <div className="p-5 bg-blue-900/20 border border-blue-500 rounded-lg">
                   <div className="flex justify-between items-center mb-3 border-b border-blue-800/50 pb-2">
-                    <h3 className="text-blue-400 font-bold text-lg">🎨 비주얼 프롬프트 (시네마틱)</h3>
-                    <button onClick={() => handleCopy(globalResult.korean_adaptation?.visual_prompt)} className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded">
-                      📋 프롬프트 복사
-                    </button>
+                    <h3 className="text-blue-400 font-bold text-lg">🎨 비주얼 프롬프트 (Arsenal Injector)</h3>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleCopy(globalResult.korean_adaptation?.visual_prompt)} className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded">
+                        📋 복사
+                      </button>
+                      <button
+                        disabled={vvipGenerating}
+                        onClick={() => handleVVIPGenerate(globalResult.korean_adaptation?.visual_prompt)}
+                        className={`px-4 py-1.5 text-sm font-bold rounded transition-all ${
+                          vvipGenerating
+                            ? 'bg-gray-700 text-gray-400 cursor-not-allowed animate-pulse'
+                            : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-lg shadow-blue-900/30'
+                        }`}
+                      >
+                        {vvipGenerating ? '⏳ VVIP 생성 중...' : '💎 VVIP 비주얼 생성'}
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-blue-200 font-mono text-sm break-all">{globalResult.korean_adaptation?.visual_prompt}</p>
+                  <p className="text-blue-200 font-mono text-sm break-all mb-3">{globalResult.korean_adaptation?.visual_prompt}</p>
+                  <p className="text-[8px] text-blue-500/50">🛡️ Arsenal Tags: 35mm lens · f/1.8 · cinematic lighting · 8k · UE5 · photorealistic · film grain · depth of field</p>
+
+                  {/* VVIP 생성 결과 */}
+                  {vvipImage && (
+                    <div className="mt-4 p-4 bg-black/40 rounded-lg border border-purple-500/30">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-purple-400 text-xs font-bold">💎 VVIP 시네마틱 결과</span>
+                        <a href={vvipImage.imageUrl} target="_blank" rel="noopener noreferrer" className="text-[9px] text-blue-400 hover:text-blue-300 underline">원본 다운로드 ↗</a>
+                      </div>
+                      <img src={vvipImage.imageUrl} alt="VVIP Generated Visual" className="w-full max-w-sm mx-auto rounded-lg shadow-2xl shadow-purple-900/20 border border-gray-700" />
+                      <p className="mt-2 text-[8px] text-gray-600 text-center">ID: {vvipImage.generationId} · {vvipImage.aspectRatio}</p>
+                    </div>
+                  )}
                 </div>
                 
               </div>
