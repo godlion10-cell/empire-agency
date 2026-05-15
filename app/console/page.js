@@ -103,13 +103,27 @@ export default function EmpireConsole() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
 
+  // ★ 프로젝트 목록 자동 로드 (마운트 시)
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const res = await fetch('/api/projects');
+        const data = await res.json();
+        if (data.success) setProjects(data.projects || []);
+      } catch (e) {
+        console.log('⚠️ 프로젝트 로드 실패:', e.message);
+      }
+    };
+    fetchProjects();
+  }, []);
+
   useEffect(() => {
     const fetchVoices = async () => {
       setVoicesLoading(true);
       try {
         const res = await fetch('/api/voices');
         const data = await res.json();
-        if (data.success && data.voices.length > 0) {
+        if (data.success && data.voices?.length > 0) {
           setVoices(data.voices);
           setSelectedVoice(data.voices[0].id);
         }
