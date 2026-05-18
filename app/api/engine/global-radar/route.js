@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
 
 export const maxDuration = 60;
-export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/engine/global-radar
  * 
- * Global Radar ??YouTube Data API v3 (2?�계 ?�캔)
- * 1?�계: search.list ??50�??�상 ID ?�집
- * 2?�계: videos.list ??조회??+ ?�짜 ?�계 ?�수
+ * Global Radar — YouTube Data API v3 (2단계 스캔)
+ * 1단계: search.list → 50개 영상 ID 수집
+ * 2단계: videos.list → 조회수 + 날짜 통계 흡수
  */
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
@@ -17,17 +16,18 @@ export async function GET(req) {
   const apiKey = process.env.YOUTUBE_API_KEY;
 
   if (!keyword) {
-    return NextResponse.json({ success: false, error: '검???�워?��? ?�요?�니??' }, { status: 400 });
+    return NextResponse.json({ success: false, error: '검색 키워드가 필요합니다.' }, { status: 400 });
   }
 
   if (!apiKey) {
-    return NextResponse.json({ success: false, error: 'YOUTUBE_API_KEY ?�경변?��? ?�정?��? ?�았?�니??' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'YOUTUBE_API_KEY 환경변수가 설정되지 않았습니다.' }, { status: 500 });
   }
 
   try {
-    console.log(`?�� [RADAR] 1?�계 ?�캔: "${keyword}" in ${regionCode}`);
+    console.log(`📡 [RADAR] 1단계 스캔: "${keyword}" in ${regionCode}`);
 
-    // ?�═??1?�계: ?�워?�로 ?�위 50�??�상 ID ?�캔 ?�═??    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&q=${encodeURIComponent(keyword)}&regionCode=${regionCode}&type=video&relevanceLanguage=${regionCode === 'CN' ? 'zh' : regionCode === 'JP' ? 'ja' : regionCode === 'KR' ? 'ko' : 'en'}&key=${apiKey}`;
+    // ═══ 1단계: 키워드로 상위 50개 영상 ID 스캔 ═══
+    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&q=${encodeURIComponent(keyword)}&regionCode=${regionCode}&type=video&relevanceLanguage=${regionCode === 'CN' ? 'zh' : regionCode === 'JP' ? 'ja' : regionCode === 'KR' ? 'ko' : 'en'}&key=${apiKey}`;
     const searchRes = await fetch(searchUrl);
 
     if (!searchRes.ok) {
@@ -42,12 +42,13 @@ export async function GET(req) {
       return NextResponse.json({ success: true, keyword, regionCode, count: 0, videos: [] });
     }
 
-    // ?�상 ID???�표 ?�결
+    // 영상 ID들 쉼표 연결
     const videoIds = items.map(item => item.id.videoId).join(',');
 
-    console.log(`?�� [RADAR] 2?�계 ?�계 ?�수: ${items.length}�??�상`);
+    console.log(`📡 [RADAR] 2단계 통계 흡수: ${items.length}개 영상`);
 
-    // ?�═??2?�계: 50�??�상??조회??+ ?�짜 ?�계 ??번에 ?�수 ?�═??    const statsUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds}&key=${apiKey}`;
+    // ═══ 2단계: 50개 영상의 조회수 + 날짜 통계 한 번에 흡수 ═══
+    const statsUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds}&key=${apiKey}`;
     const statsRes = await fetch(statsUrl);
 
     if (!statsRes.ok) {
@@ -69,7 +70,7 @@ export async function GET(req) {
       commentCount: item.statistics?.commentCount || '0',
     }));
 
-    console.log(`??[RADAR] ${videos.length}�??�상 + ?�계 ?�료 (${regionCode})`);
+    console.log(`✅ [RADAR] ${videos.length}개 영상 + 통계 완료 (${regionCode})`);
 
     return NextResponse.json({
       success: true,
@@ -79,7 +80,7 @@ export async function GET(req) {
       videos,
     });
   } catch (error) {
-    console.error('??[RADAR] ?�캔 ?�패:', error.message);
+    console.error('❌ [RADAR] 스캔 실패:', error.message);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
