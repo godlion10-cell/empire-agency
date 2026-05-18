@@ -112,6 +112,7 @@ function EmpireConsole() {
   const [pipelineMode, setPipelineMode] = useState('AUTO'); // 'AUTO' | 'SEMI_AUTO'
   const [wizardState, setWizardState] = useState(INITIAL_WIZARD_STATE);
   const [wizardEditScript, setWizardEditScript] = useState(''); // 반자동 시 편집 가능한 대본
+  const [wizardVisualStyle, setWizardVisualStyle] = useState('cinematic'); // 비주얼 스타일 선택
   const wizardResolveRef = useRef(null); // 반자동 대기 Promise resolver
 
   // ═══ Auto-Save (Debounced) — 프로젝트 상태 자동 저장 ═══
@@ -928,6 +929,7 @@ function EmpireConsole() {
             keyword: kw,
             context: copyResult.data?.[0]?.headline || '',
             mood: 'premium cinematic luxury',
+            style: wizardVisualStyle, // 위저드에서 선택한 비주얼 스타일
           }),
         });
         const mjData = await mjRes.json();
@@ -957,6 +959,28 @@ function EmpireConsole() {
       if (copyResult.data?.adaptive) {
         setAdaptiveConfig(copyResult.data.adaptive.config);
         setAdaptiveSegments(copyResult.data.adaptive.segments);
+      }
+
+      // ═══ 🔀 HYBRID CHECKPOINT 2: Step 2 → Step 3 라우팅 ═══
+      const routing2 = routeAfterStep('STEP_2_VISUAL', pipelineMode === 'AUTO');
+
+      if (routing2.action === 'PAUSE') {
+        setWizardState({
+          active: true,
+          currentStep: 'STEP_2_VISUAL',
+          nextStep: routing2.nextStep,
+          status: 'WAITING_FOR_USER',
+          editableData: mjPrompts,
+          stepHistory: ['STEP_0_INIT', 'STEP_1_DNA', 'STEP_2_VISUAL'],
+        });
+        setToastMsg('✍️ 반자동 — 비주얼 프롬프트를 검토하고 [다음 단계로] 버튼을 눌러주세요.');
+
+        await new Promise((resolve) => {
+          wizardResolveRef.current = resolve;
+        });
+
+        setWizardState(prev => ({ ...prev, active: false, status: 'PROCESSING' }));
+        setToastMsg('🚀 최종 단계 진행 중...');
       }
 
       // ═══ Step 2 완료 → DB UPDATE (Visual 결과 저장) ═══
@@ -1094,7 +1118,7 @@ function EmpireConsole() {
                 const statusMap = {
                   'STEP_0_INIT': '📦 프로젝트 생성 완료',
                   'STEP_1_DNA': '✍️ 대본 검토 대기 중 (수정 후 다음 단계를 눌러주세요)',
-                  'STEP_2_VISUAL': '🎨 비주얼 프롬프트 생성 중...',
+                  'STEP_2_VISUAL': '🎨 비주얼 프롬프트 검토 대기 중 (스타일 선택 후 다음 단계를 눌러주세요)',
                   'STEP_3_RENDER': '🎬 렌더링 진행 중...',
                   'COMPLETE': '✅ 파이프라인 완료',
                 };
@@ -1130,17 +1154,90 @@ function EmpireConsole() {
               })()}
             </div>
 
-            {/* Body — 편집 가능한 대본 영역 */}
+            {/* Body — 단계별 조건부 UI */}
             <div className="p-6">
-              <label className="block text-xs text-gray-400 mb-2 font-bold">📝 추출된 대본 (수정 가능)</label>
-              <textarea
-                id="wizard_edit_script"
-                value={wizardEditScript}
-                onChange={(e) => setWizardEditScript(e.target.value)}
-                className="w-full h-64 bg-black border border-gray-700 rounded-lg p-4 text-sm text-gray-200 font-mono leading-relaxed focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 outline-none resize-y"
-                placeholder="대본이 여기에 표시됩니다..."
-              />
-              <p className="text-[10px] text-gray-600 mt-1">💡 수정 후 [다음 단계로] 버튼을 누르면 수정된 내용이 반영됩니다.</p>
+
+              {/* ═══ STEP 1: 대본 검토 + 편집 ═══ */}
+              {wizardState.currentStep === 'STEP_1_DNA' && (
+                <div>
+                  <label className="block text-xs text-gray-400 mb-2 font-bold">📝 추출된 대본 (수정 가능)</label>
+                  <textarea
+                    id="wizard_edit_script"
+                    value={wizardEditScript}
+                    onChange={(e) => setWizardEditScript(e.target.value)}
+                    className="w-full h-64 bg-black border border-gray-700 rounded-lg p-4 text-sm text-gray-200 font-mono leading-relaxed focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 outline-none resize-y"
+                    placeholder="대본이 여기에 표시됩니다..."
+                  />
+                  <p className="text-[10px] text-gray-600 mt-1">💡 수정 후 [다음 단계로] 버튼을 누르면 수정된 내용이 반영됩니다.</p>
+
+                  {/* 비주얼 스타일 사전 선택 (Step 2에서 사용) */}
+                  <div className="mt-4 p-4 bg-gray-800/50 rounded-xl border border-gray-700">
+                    <label className="block text-xs text-violet-400 mb-2 font-bold">🎨 비주얼 스타일 선택 (다음 단계에 적용)</label>
+                    <select
+                      value={wizardVisualStyle}
+                      onChange={(e) => setWizardVisualStyle(e.target.value)}
+                      className="w-full p-2.5 bg-black border border-gray-700 rounded-lg text-sm text-gray-200 focus:border-violet-500 outline-none"
+                    >
+                      <option value="cinematic">🎬 시네마틱 실사 (Cinematic Realism)</option>
+                      <option value="cyberpunk">🌆 사이버펑크 / 네온 (Cyberpunk)</option>
+                      <option value="3d_pixar">🧸 3D 픽사 스타일 (3D Animation)</option>
+                      <option value="claymation">🎭 클레이메이션 (Claymation)</option>
+                      <option value="anime">🌸 일본 애니메이션 (Anime)</option>
+                      <option value="watercolor">🎨 수채화 / 일러스트 (Watercolor)</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* ═══ STEP 2: 비주얼 프롬프트 검토 ═══ */}
+              {wizardState.currentStep === 'STEP_2_VISUAL' && (
+                <div>
+                  {/* 확정된 대본 요약 (읽기 전용) */}
+                  <div className="mb-4 p-3 bg-gray-800/60 rounded-lg border border-gray-700">
+                    <p className="text-[10px] font-bold text-gray-400 mb-1">📄 확정된 대본 요약</p>
+                    <p className="text-xs text-gray-300 line-clamp-3">{wizardEditScript?.substring(0, 200) || '(대본 없음)'}...</p>
+                  </div>
+
+                  {/* 비주얼 스타일 변경 */}
+                  <div className="mb-4">
+                    <label className="block text-xs text-violet-400 mb-2 font-bold">🎨 비주얼 스타일</label>
+                    <select
+                      value={wizardVisualStyle}
+                      onChange={(e) => setWizardVisualStyle(e.target.value)}
+                      className="w-full p-2.5 bg-black border border-gray-700 rounded-lg text-sm text-gray-200 focus:border-violet-500 outline-none"
+                    >
+                      <option value="cinematic">🎬 시네마틱 실사 (Cinematic Realism)</option>
+                      <option value="cyberpunk">🌆 사이버펑크 / 네온 (Cyberpunk)</option>
+                      <option value="3d_pixar">🧸 3D 픽사 스타일 (3D Animation)</option>
+                      <option value="claymation">🎭 클레이메이션 (Claymation)</option>
+                      <option value="anime">🌸 일본 애니메이션 (Anime)</option>
+                      <option value="watercolor">🎨 수채화 / 일러스트 (Watercolor)</option>
+                    </select>
+                  </div>
+
+                  {/* 생성된 프롬프트 4종 그리드 */}
+                  <label className="block text-xs text-gray-400 mb-2 font-bold">🖼️ 생성된 프롬프트 4종 (검토)</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { key: 'poster', label: '🎬 포스터', ratio: '9:16' },
+                      { key: 'logo', label: '◇ 로고', ratio: '1:1' },
+                      { key: 'sns', label: '📱 SNS', ratio: '1:1' },
+                      { key: 'card', label: '🎴 카드', ratio: '16:9' },
+                    ].map(slot => (
+                      <div key={slot.key} className="bg-black border border-gray-700 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] font-bold text-violet-400">{slot.label}</span>
+                          <span className="text-[8px] text-gray-600">{slot.ratio}</span>
+                        </div>
+                        <p className="text-[10px] text-gray-400 leading-relaxed line-clamp-4">
+                          {mjPrompts?.[slot.key] || '생성 중...'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-gray-600 mt-2">💡 프롬프트는 대시보드 비주얼 영역에서 수정 가능합니다.</p>
+                </div>
+              )}
             </div>
 
             {/* Footer — 액션 버튼 */}
