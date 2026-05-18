@@ -798,8 +798,9 @@ function EmpireConsole() {
         copyResult = await res.json();
       }
 
+      let d = null;
       if (copyResult.success) {
-        const d = copyResult.rewrittenCopy || copyResult.data;
+        d = copyResult.rewrittenCopy || copyResult.data;
         setCopyData(d);
         setEngineResult(d);
 
