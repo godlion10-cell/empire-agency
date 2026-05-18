@@ -2,24 +2,27 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { generateVoiceAsDataUrl } from '@/lib/audio-engine';
 
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // ============================================================
-// 1. 음성 생성 엔진 (Edge TTS → ElevenLabs → OpenAI TTS Fallback)
+// 1. ?�성 ?�성 ?�진 (Edge TTS ??ElevenLabs ??OpenAI TTS Fallback)
 // ============================================================
 async function generateVoice(text) {
-  // [1차: Edge TTS — 100% 무료]
+  // [1�? Edge TTS ??100% 무료]
   try {
-    console.log(`🔊 [VOICE] Edge TTS 시도 (ZERO COST)...`);
+    console.log(`?�� [VOICE] Edge TTS ?�도 (ZERO COST)...`);
     const result = await generateVoiceAsDataUrl(text, 'ko-KR-SunHiNeural');
     return result;
   } catch (edgeErr) {
-    console.log(`⚠️ Edge TTS 실패 (${edgeErr.message}), ElevenLabs로 전환`);
+    console.log(`?�️ Edge TTS ?�패 (${edgeErr.message}), ElevenLabs�??�환`);
   }
 
-  // [2차: ElevenLabs — 유료 백업]
+  // [2�? ElevenLabs ???�료 백업]
   try {
-    if (!process.env.ELEVENLABS_API_KEY) throw new Error('ElevenLabs API Key 미설정');
+    if (!process.env.ELEVENLABS_API_KEY) throw new Error('ElevenLabs API Key 미설??);
 
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${process.env.ELEVENLABS_VOICE_ID}`, {
       method: 'POST',
@@ -36,12 +39,11 @@ async function generateVoice(text) {
     const base64 = Buffer.from(audioBuffer).toString('base64');
     return { source: 'ElevenLabs', dataUrl: `data:audio/mpeg;base64,${base64}` };
   } catch (error) {
-    // [3차: OpenAI TTS — 최종 백업]
-    console.log(`⚠️ ElevenLabs 실패 (${error.message}), OpenAI TTS로 전환`);
+    // [3�? OpenAI TTS ??최종 백업]
+    console.log(`?�️ ElevenLabs ?�패 (${error.message}), OpenAI TTS�??�환`);
     const mp3 = await openai.audio.speech.create({
       model: 'tts-1-hd',
-      voice: 'onyx', // 부동산에 어울리는 중후한 톤
-      input: text,
+      voice: 'onyx', // 부?�산???�울리는 중후????      input: text,
     });
     const audioBuffer = await mp3.arrayBuffer();
     const base64 = Buffer.from(audioBuffer).toString('base64');
@@ -50,14 +52,14 @@ async function generateVoice(text) {
 }
 
 // ============================================================
-// 2. 비디오 생성 엔진 (유/무 모드 분기)
+// 2. 비디???�성 ?�진 (??�?모드 분기)
 // ============================================================
 async function triggerVideoGeneration(prompt, mode, imageUrl = null) {
   if (!process.env.RUNWAY_API_KEY) {
-    // Mock 응답
+    // Mock ?�답
     return {
       status: 'mock',
-      message: 'Runway API Key 미설정 — Mock 모드',
+      message: 'Runway API Key 미설????Mock 모드',
       mode,
       prompt: prompt.substring(0, 80) + '...',
     };
@@ -83,20 +85,19 @@ async function triggerVideoGeneration(prompt, mode, imageUrl = null) {
 }
 
 // ============================================================
-// 3. 메인 핸들러
-// ============================================================
+// 3. 메인 ?�들??// ============================================================
 export async function POST(req) {
   try {
     const { mode, script, videoPrompts, clientImage } = await req.json();
 
     if (!script) {
-      return NextResponse.json({ success: false, error: '스크립트가 비어있습니다.' }, { status: 400 });
+      return NextResponse.json({ success: false, error: '?�크립트가 비어?�습?�다.' }, { status: 400 });
     }
 
-    // [Step 1] 음성 생성 (비동기)
+    // [Step 1] ?�성 ?�성 (비동�?
     const audioPromise = generateVoice(script);
 
-    // [Step 2] 3-Cut 영상 생성 요청 (병렬 처리)
+    // [Step 2] 3-Cut ?�상 ?�성 ?�청 (병렬 처리)
     const prompts = videoPrompts || [script];
     const videoPromises = prompts.map(prompt =>
       triggerVideoGeneration(prompt, mode || 'M', clientImage)
@@ -104,12 +105,12 @@ export async function POST(req) {
 
     const [audioResult, ...videoResults] = await Promise.all([audioPromise, ...videoPromises]);
 
-    // [Step 3] 자막 데이터 생성
+    // [Step 3] ?�막 ?�이???�성
     const subtitles = {
       content: script,
       style: 'Luxury Gold',
       animation: 'FadeIn',
-      lines: script.split(/[.!?。]+/).filter(Boolean).map((s, i) => ({
+      lines: script.split(/[.!???+/).filter(Boolean).map((s, i) => ({
         index: i + 1,
         text: s.trim(),
       })),
@@ -128,7 +129,7 @@ export async function POST(req) {
       },
     });
   } catch (error) {
-    console.error('🔴 Render Engine Error:', error);
+    console.error('?�� Render Engine Error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

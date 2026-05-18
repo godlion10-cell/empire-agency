@@ -2,11 +2,14 @@ import { NextResponse } from 'next/server';
 import { notifyStageComplete, notifyVideoComplete } from '@/lib/telegram-notify';
 import { evaluateVideoResponse } from '@/lib/qa-engine';
 
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/video-generate
  * 
- * 이미지 → 영상 변환 (Runway/Luma Image-to-Video)
- * 이미지 없이 텍스트만 → Text-to-Video
+ * ?��?지 ???�상 변??(Runway/Luma Image-to-Video)
+ * ?��?지 ?�이 ?�스?�만 ??Text-to-Video
  * 
  * Body: { prompt, imageUrl?, provider?: 'runway'|'luma', duration?: 5|10 }
  */
@@ -15,11 +18,11 @@ export async function POST(req) {
     const { prompt, imageUrl, provider = 'runway', duration = 5 } = await req.json();
 
     if (!prompt) {
-      return NextResponse.json({ success: false, error: '프롬프트가 필요합니다.' }, { status: 400 });
+      return NextResponse.json({ success: false, error: '?�롬?�트가 ?�요?�니??' }, { status: 400 });
     }
 
     const mode = imageUrl ? 'image-to-video' : 'text-to-video';
-    console.log(`🎬 [VIDEO-GEN] ${provider.toUpperCase()} ${mode} | Duration: ${duration}s`);
+    console.log(`?�� [VIDEO-GEN] ${provider.toUpperCase()} ${mode} | Duration: ${duration}s`);
     console.log(`   Prompt: ${prompt.substring(0, 80)}...`);
     if (imageUrl) console.log(`   Image: ${imageUrl.substring(0, 60)}...`);
 
@@ -27,8 +30,8 @@ export async function POST(req) {
     if (provider === 'runway') {
       const apiKey = process.env.RUNWAY_API_KEY;
       if (!apiKey) {
-        console.log('⚠️ RUNWAY_API_KEY 미설정');
-        return mockResponse(provider, mode, prompt, imageUrl, duration, 'RUNWAY_API_KEY가 .env.local에 설정되지 않았습니다.');
+        console.log('?�️ RUNWAY_API_KEY 미설??);
+        return mockResponse(provider, mode, prompt, imageUrl, duration, 'RUNWAY_API_KEY가 .env.local???�정?��? ?�았?�니??');
       }
 
       try {
@@ -36,9 +39,9 @@ export async function POST(req) {
           model: 'gen4_turbo',
           promptText: prompt,
           duration,
-          ratio: '720:1280', // 숏폼 세로 비율
+          ratio: '720:1280', // ?�폼 ?�로 비율
         };
-        // promptImage는 실제 URL이 있을 때만 포함 (undefined 전송 방지)
+        // promptImage???�제 URL???�을 ?�만 ?�함 (undefined ?�송 방�?)
         if (imageUrl && imageUrl.startsWith('http')) {
           runwayBody.promptImage = imageUrl;
         }
@@ -54,7 +57,7 @@ export async function POST(req) {
         });
 
         const resText = await runwayRes.text();
-        console.log(`🎬 [RUNWAY] Status: ${runwayRes.status} | Response: ${resText.substring(0, 300)}`);
+        console.log(`?�� [RUNWAY] Status: ${runwayRes.status} | Response: ${resText.substring(0, 300)}`);
 
         if (runwayRes.ok) {
           const data = JSON.parse(resText);
@@ -65,31 +68,31 @@ export async function POST(req) {
               status: 'processing',
               provider: 'runway',
               mode,
-              message: `✅ Runway ${mode} 작업이 시작되었습니다. 약 30-90초 소요됩니다.`,
+              message: `??Runway ${mode} ?�업???�작?�었?�니?? ??30-90�??�요?�니??`,
             }
           };
-          // 🛡️ Gate 3: Video Response QC
+          // ?���?Gate 3: Video Response QC
           const g3 = evaluateVideoResponse(responsePayload);
-          console.log(`🛡️ [G3-VIDEO] Runway: ${g3.pass ? '✅ PASS' : '❌ ' + g3.reason}`);
-          // 📬 렌더링 시작 알림
-          notifyStageComplete(prompt.substring(0, 30), 'VIDEO', `Runway ${mode} 시작 — ID: ${data.id}`).catch(() => {});
+          console.log(`?���?[G3-VIDEO] Runway: ${g3.pass ? '??PASS' : '??' + g3.reason}`);
+          // ?�� ?�더�??�작 ?�림
+          notifyStageComplete(prompt.substring(0, 30), 'VIDEO', `Runway ${mode} ?�작 ??ID: ${data.id}`).catch(() => {});
           return NextResponse.json(responsePayload);
         } else {
-          // API 호출은 됐지만 에러 반환
+          // API ?�출?� ?��?�??�러 반환
           let errorDetail;
           try { errorDetail = JSON.parse(resText); } catch { errorDetail = { message: resText }; }
-          console.error('❌ [RUNWAY] API 에러:', errorDetail);
+          console.error('??[RUNWAY] API ?�러:', errorDetail);
           return NextResponse.json({
             success: false,
-            error: `Runway API 에러 (${runwayRes.status}): ${errorDetail.error || errorDetail.message || resText.substring(0, 200)}`,
+            error: `Runway API ?�러 (${runwayRes.status}): ${errorDetail.error || errorDetail.message || resText.substring(0, 200)}`,
             detail: errorDetail,
           }, { status: runwayRes.status });
         }
       } catch (e) {
-        console.error('❌ [RUNWAY] 연결 실패:', e.message);
+        console.error('??[RUNWAY] ?�결 ?�패:', e.message);
         return NextResponse.json({
           success: false,
-          error: `Runway 연결 실패: ${e.message}`,
+          error: `Runway ?�결 ?�패: ${e.message}`,
         }, { status: 502 });
       }
     }
@@ -98,8 +101,8 @@ export async function POST(req) {
     if (provider === 'luma') {
       const apiKey = process.env.LUMA_API_KEY;
       if (!apiKey) {
-        console.log('⚠️ LUMA_API_KEY 미설정');
-        return mockResponse(provider, mode, prompt, imageUrl, duration, 'LUMA_API_KEY가 .env.local에 설정되지 않았습니다.');
+        console.log('?�️ LUMA_API_KEY 미설??);
+        return mockResponse(provider, mode, prompt, imageUrl, duration, 'LUMA_API_KEY가 .env.local???�정?��? ?�았?�니??');
       }
 
       try {
@@ -125,12 +128,12 @@ export async function POST(req) {
         });
 
         const resText = await lumaRes.text();
-        console.log(`🎬 [LUMA] Status: ${lumaRes.status} | Response: ${resText.substring(0, 300)}`);
+        console.log(`?�� [LUMA] Status: ${lumaRes.status} | Response: ${resText.substring(0, 300)}`);
 
         if (lumaRes.ok) {
           const data = JSON.parse(resText);
-          // 📬 렌더링 시작 알림
-          notifyStageComplete(prompt.substring(0, 30), 'VIDEO', `Luma ${mode} 시작 — ID: ${data.id}`).catch(() => {});
+          // ?�� ?�더�??�작 ?�림
+          notifyStageComplete(prompt.substring(0, 30), 'VIDEO', `Luma ${mode} ?�작 ??ID: ${data.id}`).catch(() => {});
           return NextResponse.json({
             success: true,
             data: {
@@ -138,38 +141,38 @@ export async function POST(req) {
               status: 'processing',
               provider: 'luma',
               mode,
-              message: `✅ Luma ${mode} 작업이 시작되었습니다.`,
+              message: `??Luma ${mode} ?�업???�작?�었?�니??`,
             }
           });
         } else {
           let errorDetail;
           try { errorDetail = JSON.parse(resText); } catch { errorDetail = { message: resText }; }
-          console.error('❌ [LUMA] API 에러:', errorDetail);
+          console.error('??[LUMA] API ?�러:', errorDetail);
           return NextResponse.json({
             success: false,
-            error: `Luma API 에러 (${lumaRes.status}): ${errorDetail.error || errorDetail.message || resText.substring(0, 200)}`,
+            error: `Luma API ?�러 (${lumaRes.status}): ${errorDetail.error || errorDetail.message || resText.substring(0, 200)}`,
             detail: errorDetail,
           }, { status: lumaRes.status });
         }
       } catch (e) {
-        console.error('❌ [LUMA] 연결 실패:', e.message);
+        console.error('??[LUMA] ?�결 ?�패:', e.message);
         return NextResponse.json({
           success: false,
-          error: `Luma 연결 실패: ${e.message}`,
+          error: `Luma ?�결 ?�패: ${e.message}`,
         }, { status: 502 });
       }
     }
 
     // Unknown provider
-    return mockResponse(provider, mode, prompt, imageUrl, duration, `알 수 없는 provider: ${provider}`);
+    return mockResponse(provider, mode, prompt, imageUrl, duration, `?????�는 provider: ${provider}`);
 
   } catch (error) {
-    console.error('❌ [VIDEO-GEN] 에러:', error.message);
+    console.error('??[VIDEO-GEN] ?�러:', error.message);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
-/** Mock 응답 헬퍼 */
+/** Mock ?�답 ?�퍼 */
 function mockResponse(provider, mode, prompt, imageUrl, duration, reason) {
   return NextResponse.json({
     success: true,
@@ -185,7 +188,7 @@ function mockResponse(provider, mode, prompt, imageUrl, duration, reason) {
       duration,
       mockPreview: {
         thumbnail: imageUrl || null,
-        estimatedTime: `${duration * 6}초`,
+        estimatedTime: `${duration * 6}�?,
       }
     }
   });

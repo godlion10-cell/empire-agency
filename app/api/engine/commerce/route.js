@@ -2,15 +2,17 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { buildSystemPrompt } from '@/lib/engine-prompts';
 
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/engine/commerce
  * 
- * 엔진 3: 커머스 맞춤 광고 — 하이브리드 멀티인풋
- * 
- * 3가지 시나리오:
- * A. 이미지 기반 감성 모드 (image only)
- * B. 데이터 기반 논리 모드 (url only)
- * C. 하이브리드 최고급 모드 (image + url)
+ * ?�진 3: 커머??맞춤 광고 ???�이브리??멀?�인?? * 
+ * 3가지 ?�나리오:
+ * A. ?��?지 기반 감성 모드 (image only)
+ * B. ?�이??기반 ?�리 모드 (url only)
+ * C. ?�이브리??최고�?모드 (image + url)
  * 
  * Body: { url?: string, image?: string (base64 dataURL), productName?: string }
  */
@@ -21,75 +23,75 @@ export async function POST(req) {
     if (!url && !image) {
       return NextResponse.json({
         success: false,
-        error: '상품 URL 또는 제품 이미지를 입력해주세요.',
+        error: '?�품 URL ?�는 ?�품 ?��?지�??�력?�주?�요.',
       }, { status: 400 });
     }
 
-    // 시나리오 판별
+    // ?�나리오 ?�별
     const scenario = (image && url) ? 'C' : image ? 'A' : 'B';
-    const scenarioLabel = scenario === 'C' ? '하이브리드 (이미지+URL)' : scenario === 'A' ? '이미지 감성 분석' : '데이터 논리 분석';
+    const scenarioLabel = scenario === 'C' ? '?�이브리??(?��?지+URL)' : scenario === 'A' ? '?��?지 감성 분석' : '?�이???�리 분석';
 
-    console.log(`🛍️ [COMMERCE] 엔진 가동: 시나리오 ${scenario} (${scenarioLabel})`);
+    console.log(`?���?[COMMERCE] ?�진 가?? ?�나리오 ${scenario} (${scenarioLabel})`);
 
-    // 시스템 프롬프트 조합
+    // ?�스???�롬?�트 조합
     const systemPrompt = buildSystemPrompt('commerce', {
-      clientName: productName || url || '제품',
+      clientName: productName || url || '?�품',
       usps: [scenarioLabel],
     });
 
-    // 시나리오별 유저 프롬프트 생성
+    // ?�나리오�??��? ?�롬?�트 ?�성
     let userPrompt;
     if (scenario === 'C') {
-      userPrompt = `[하이브리드 모드] 이 제품 사진의 비주얼 톤과 상세페이지(${url})의 핵심 정보를 융합하여,
-시각적으로 화려하면서도 신뢰감 있는 15초 광고를 기획하라.
+      userPrompt = `[?�이브리??모드] ???�품 ?�진??비주???�과 ?�세?�이지(${url})???�심 ?�보�??�합?�여,
+?�각?�으�??�려?�면?�도 ?�뢰�??�는 15�?광고�?기획?�라.
 
-제품명: ${productName || '분석 중'}
-상세페이지: ${url}
-제품 이미지: [첨부됨]
+?�품�? ${productName || '분석 �?}
+?�세?�이지: ${url}
+?�품 ?��?지: [첨�???
 
-다음을 JSON으로 출력하라:
+?�음??JSON?�로 출력?�라:
 {
   "scenario": "C",
   "product_analysis": { "name": "", "category": "", "price_tier": "luxury|value", "usp": [], "visual_mood": "" },
   "ad_variants": [
     { "angle": "감성", "headline": "", "body": "", "cta": "" },
-    { "angle": "신뢰", "headline": "", "body": "", "cta": "" },
+    { "angle": "?�뢰", "headline": "", "body": "", "cta": "" },
     { "angle": "긴급", "headline": "", "body": "", "cta": "" }
   ],
   "visual_cuts": [{ "cut": 1, "description": "", "mj_prompt": "", "duration_sec": 3 }],
   "subtitles": [{ "start": 0.0, "end": 3.5, "text": "" }]
 }`;
     } else if (scenario === 'A') {
-      userPrompt = `[이미지 감성 모드] 이 사진에서 느껴지는 제품의 질감, 색감, 분위기를 분석하여
-감각적인 15초 숏폼 광고를 기획하라.
+      userPrompt = `[?��?지 감성 모드] ???�진?�서 ?�껴지???�품??질감, ?�감, 분위기�? 분석?�여
+감각?�인 15�??�폼 광고�?기획?�라.
 
-제품명: ${productName || '사진 분석'}
-제품 이미지: [첨부됨]
+?�품�? ${productName || '?�진 분석'}
+?�품 ?��?지: [첨�???
 
-다음을 JSON으로 출력하라:
+?�음??JSON?�로 출력?�라:
 {
   "scenario": "A",
   "product_analysis": { "name": "", "category": "", "price_tier": "luxury|value", "usp": [], "visual_mood": "" },
   "ad_variants": [
     { "angle": "감성", "headline": "", "body": "", "cta": "" },
-    { "angle": "라이프스타일", "headline": "", "body": "", "cta": "" }
+    { "angle": "?�이?�스?�??, "headline": "", "body": "", "cta": "" }
   ],
   "visual_cuts": [{ "cut": 1, "description": "", "mj_prompt": "", "duration_sec": 3 }],
   "subtitles": [{ "start": 0.0, "end": 3.5, "text": "" }]
 }`;
     } else {
-      userPrompt = `[데이터 논리 모드] 상세페이지(${url})의 제품 특징을 바탕으로
-구매 전환율이 높은 15초 광고를 기획하라.
+      userPrompt = `[?�이???�리 모드] ?�세?�이지(${url})???�품 ?�징??바탕?�로
+구매 ?�환?�이 ?��? 15�?광고�?기획?�라.
 
-제품명: ${productName || url}
-상세페이지 URL: ${url}
+?�품�? ${productName || url}
+?�세?�이지 URL: ${url}
 
-다음을 JSON으로 출력하라:
+?�음??JSON?�로 출력?�라:
 {
   "scenario": "B",
   "product_analysis": { "name": "", "category": "", "price_tier": "luxury|value", "usp": [] },
   "ad_variants": [
-    { "angle": "논리", "headline": "", "body": "", "cta": "" },
+    { "angle": "?�리", "headline": "", "body": "", "cta": "" },
     { "angle": "비교", "headline": "", "body": "", "cta": "" },
     { "angle": "긴급", "headline": "", "body": "", "cta": "" }
   ],
@@ -100,11 +102,11 @@ export async function POST(req) {
 
     let result;
 
-    // Gemini Multimodal 사용 (이미지 있을 때)
+    // Gemini Multimodal ?�용 (?��?지 ?�을 ??
     if (image && process.env.GEMINI_API_KEY) {
       const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-      // base64 dataURL에서 데이터 추출
+      // base64 dataURL?�서 ?�이??추출
       const base64Match = image.match(/^data:(.+);base64,(.+)$/);
       const parts = [{ text: `${systemPrompt}\n\n${userPrompt}` }];
 
@@ -145,7 +147,7 @@ export async function POST(req) {
       result = JSON.parse(response.choices[0].message.content);
     }
 
-    console.log(`✅ [COMMERCE] 시나리오 ${scenario} 완료`);
+    console.log(`??[COMMERCE] ?�나리오 ${scenario} ?�료`);
 
     return NextResponse.json({
       success: true,
@@ -156,7 +158,7 @@ export async function POST(req) {
     });
 
   } catch (error) {
-    console.error('❌ [COMMERCE] 에러:', error.message);
+    console.error('??[COMMERCE] ?�러:', error.message);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

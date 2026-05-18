@@ -6,6 +6,7 @@ import { buildAnalysisPayload, segmentsToPromptText, extractKeyMoments } from '@
 import { runWithQA, evaluateDnaScript } from '@/lib/qa-engine';
 
 export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });

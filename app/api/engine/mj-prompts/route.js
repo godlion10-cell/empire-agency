@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { evaluateVisualPrompts } from '@/lib/qa-engine';
 
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/engine/mj-prompts
- * LLM 기반 동적 Midjourney 프롬프트 4종 생성
+ * LLM 기반 ?�적 Midjourney ?�롬?�트 4�??�성
  * 
  * Body: { keyword: string, context?: string, mood?: string }
  * Response: { success: true, prompts: { poster, logo, sns, card } }
@@ -30,10 +33,10 @@ CRITICAL RULES:
 5. Include Midjourney parameters (--ar, --v 6.0) at the end of each prompt.
 
 EXAMPLES OF CORRECT BEHAVIOR:
-- Keyword "치킨집" → prompts about fried chicken restaurant, crispy golden chicken, cozy Korean restaurant atmosphere
-- Keyword "피트니스" → prompts about gym, fitness lifestyle, athletic bodies, workout equipment
-- Keyword "카페" → prompts about coffee shop, barista, latte art, cozy interior
-- Keyword "심리학" → prompts about human psychology, brain visualization, emotional portraits
+- Keyword "치킨�? ??prompts about fried chicken restaurant, crispy golden chicken, cozy Korean restaurant atmosphere
+- Keyword "?�트?�스" ??prompts about gym, fitness lifestyle, athletic bodies, workout equipment
+- Keyword "카페" ??prompts about coffee shop, barista, latte art, cozy interior
+- Keyword "?�리?? ??prompts about human psychology, brain visualization, emotional portraits
 
 Return ONLY a valid JSON object with this exact structure:
 {
@@ -101,9 +104,8 @@ Remember: Match the prompts to what "${keyword}" ACTUALLY means. Do NOT default 
       }
     }
 
-    // ═══ QA Gate 2: Visual Prompt Validation ═══
-    const qaCheck = evaluateVisualPrompts(prompts);
-    console.log(`🛡️ [MJ-QA] ${qaCheck.pass ? '✅ PASS' : '⚠️ ISSUES: ' + qaCheck.issues.join(', ')}`);
+    // ?�═??QA Gate 2: Visual Prompt Validation ?�═??    const qaCheck = evaluateVisualPrompts(prompts);
+    console.log(`?���?[MJ-QA] ${qaCheck.pass ? '??PASS' : '?�️ ISSUES: ' + qaCheck.issues.join(', ')}`);
 
     return NextResponse.json({ success: true, prompts, qa: qaCheck });
 
