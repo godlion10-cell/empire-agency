@@ -113,6 +113,8 @@ function EmpireConsole() {
   const [wizardState, setWizardState] = useState(INITIAL_WIZARD_STATE);
   const [wizardEditScript, setWizardEditScript] = useState(''); // 반자동 시 편집 가능한 대본
   const [wizardVisualStyle, setWizardVisualStyle] = useState('cinematic'); // 비주얼 스타일 선택
+  const [renderStatus, setRenderStatus] = useState('IDLE'); // IDLE | RENDERING | DONE | ERROR
+  const [renderAssets, setRenderAssets] = useState({ images: [], audio: null, error: null });
   const wizardResolveRef = useRef(null); // 반자동 대기 Promise resolver
 
   // ═══ Auto-Save (Debounced) — 프로젝트 상태 자동 저장 ═══
@@ -1002,11 +1004,35 @@ function EmpireConsole() {
         }).catch(e => console.error('Step 2 DB UPDATE 실패:', e.message));
       }
 
+      // ═══ 🔀 HYBRID CHECKPOINT 3: Step 3 렌더링 (반자동 전용) ═══
+      const routing3 = routeAfterStep('STEP_3_RENDER', pipelineMode === 'AUTO');
+
+      if (routing3.action === 'PAUSE') {
+        setRenderStatus('IDLE');
+        setRenderAssets({ images: [], audio: null, error: null });
+        setWizardState({
+          active: true,
+          currentStep: 'STEP_3_RENDER',
+          nextStep: routing3.nextStep,
+          status: 'WAITING_FOR_USER',
+          editableData: null,
+          stepHistory: ['STEP_0_INIT', 'STEP_1_DNA', 'STEP_2_VISUAL', 'STEP_3_RENDER'],
+        });
+        setToastMsg('🎬 반자동 — 렌더링 준비 완료. [렌더 시작] 버튼을 눌러주세요.');
+
+        await new Promise((resolve) => {
+          wizardResolveRef.current = resolve;
+        });
+
+        setWizardState(prev => ({ ...prev, active: false, status: 'PROCESSING' }));
+      }
+
       setToastMsg('✅ 제국 엔진 가동 완료!');
       setTimeout(() => setToastMsg(null), 3000);
       setIsProcessing(false);
     } catch (error) {
       setIsProcessing(false);
+      setWizardState(INITIAL_WIZARD_STATE);
       setCopyGenerating(false);
       setVisualGenerating(false);
       setToastMsg(`❌ 엔진 오류: ${error.message}`);
@@ -1119,7 +1145,7 @@ function EmpireConsole() {
                   'STEP_0_INIT': '📦 프로젝트 생성 완료',
                   'STEP_1_DNA': '✍️ 대본 검토 대기 중 (수정 후 다음 단계를 눌러주세요)',
                   'STEP_2_VISUAL': '🎨 비주얼 프롬프트 검토 대기 중 (스타일 선택 후 다음 단계를 눌러주세요)',
-                  'STEP_3_RENDER': '🎬 렌더링 진행 중...',
+                  'STEP_3_RENDER': '🎬 렌더링 스튜디오 — FLUX & TTS 가동 대기',
                   'COMPLETE': '✅ 파이프라인 완료',
                 };
                 const statusText = statusMap[wizardState.currentStep] || '처리 중...';
@@ -1238,6 +1264,136 @@ function EmpireConsole() {
                   <p className="text-[10px] text-gray-600 mt-2">💡 프롬프트는 대시보드 비주얼 영역에서 수정 가능합니다.</p>
                 </div>
               )}
+
+              {/* ═══ STEP 3: 최종 렌더링 스튜디오 ═══ */}
+              {wizardState.currentStep === 'STEP_3_RENDER' && (
+                <div>
+                  {/* 확정 에셋 요약 */}
+                  <div className="mb-4 grid grid-cols-2 gap-2">
+                    <div className="p-3 bg-gray-800/60 rounded-lg border border-gray-700">
+                      <p className="text-[10px] font-bold text-gray-400 mb-1">📄 확정 대본</p>
+                      <p className="text-[10px] text-gray-300 line-clamp-2">{wizardEditScript?.substring(0, 100) || '(없음)'}...</p>
+                    </div>
+                    <div className="p-3 bg-gray-800/60 rounded-lg border border-gray-700">
+                      <p className="text-[10px] font-bold text-gray-400 mb-1">🎨 프롬프트</p>
+                      <p className="text-[10px] text-gray-300">{Object.keys(mjPrompts || {}).length}종 확정 ({wizardVisualStyle})</p>
+                    </div>
+                  </div>
+
+                  {/* 렌더 액션 영역 */}
+                  {renderStatus === 'IDLE' && (
+                    <div className="text-center py-6">
+                      <p className="text-sm text-gray-400 mb-4">FLUX 이미지 + Edge TTS 음성을 동시에 생성합니다.</p>
+                      <button
+                        id="btn_start_render"
+                        onClick={async () => {
+                          setRenderStatus('RENDERING');
+                          try {
+                            const prompts = mjPrompts || {};
+                            const promptEntries = Object.entries(prompts).filter(([, v]) => v);
+
+                            // 이미지 생성 (병렬)
+                            const imgResults = await Promise.allSettled(
+                              promptEntries.map(async ([key, prompt]) => {
+                                const res = await fetch('/api/engine/visual', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ prompt, provider: 'huggingface' }),
+                                });
+                                const data = await res.json();
+                                return { key, url: data.imageUrl || data.url || null, error: data.error };
+                              })
+                            );
+
+                            const images = imgResults
+                              .filter(r => r.status === 'fulfilled' && r.value.url)
+                              .map(r => r.value);
+
+                            // TTS 생성
+                            let audioUrl = null;
+                            try {
+                              const ttsText = wizardEditScript?.substring(0, 500) || '제국 엔진이 생성한 음성입니다.';
+                              const ttsRes = await fetch('/api/tts', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ text: ttsText, voice: 'ko-KR-SunHiNeural' }),
+                              });
+                              const ttsData = await ttsRes.json();
+                              audioUrl = ttsData.audioUrl || ttsData.url || null;
+                            } catch (ttsErr) {
+                              console.error('TTS 실패:', ttsErr);
+                            }
+
+                            setRenderAssets({ images, audio: audioUrl, error: null });
+                            setRenderStatus('DONE');
+                          } catch (err) {
+                            console.error('🚨 렌더링 실패:', err);
+                            setRenderAssets(prev => ({ ...prev, error: err.message }));
+                            setRenderStatus('ERROR');
+                          }
+                        }}
+                        className="px-8 py-3 rounded-xl text-sm font-black bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 text-white shadow-lg shadow-red-900/30 transition-all"
+                      >
+                        🔥 FLUX & 보이스 엔진 가동 시작
+                      </button>
+                    </div>
+                  )}
+
+                  {renderStatus === 'RENDERING' && (
+                    <div className="text-center py-8">
+                      <div className="inline-block w-10 h-10 border-4 border-violet-400 border-t-transparent rounded-full animate-spin mb-4" />
+                      <p className="text-sm font-bold text-amber-400 animate-pulse">⚙️ 고화질 이미지 & AI 음성 생성 중...</p>
+                      <p className="text-xs text-gray-500 mt-2">약 30초~2분 소요 | 창을 닫지 마세요</p>
+                      <div className="mt-4 flex gap-3 justify-center">
+                        <span className="text-[10px] px-2 py-1 bg-gray-800 rounded text-gray-400">🖼️ FLUX 이미지...</span>
+                        <span className="text-[10px] px-2 py-1 bg-gray-800 rounded text-gray-400">🔊 Edge TTS...</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {renderStatus === 'DONE' && (
+                    <div>
+                      <div className="text-center py-3 mb-4">
+                        <p className="text-sm font-bold text-emerald-400">✅ 렌더링 완료!</p>
+                      </div>
+                      {/* 생성된 이미지 프리뷰 */}
+                      {renderAssets.images.length > 0 && (
+                        <div className="mb-4">
+                          <label className="block text-xs text-gray-400 mb-2 font-bold">🖼️ 생성된 이미지 ({renderAssets.images.length}장)</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {renderAssets.images.map((img, i) => (
+                              <div key={i} className="bg-black border border-gray-700 rounded-lg overflow-hidden">
+                                <img src={img.url} alt={img.key} className="w-full h-32 object-cover" />
+                                <p className="text-[9px] text-center py-1 text-gray-500">{img.key}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {/* 오디오 프리뷰 */}
+                      {renderAssets.audio && (
+                        <div className="mb-4 p-3 bg-gray-800/60 rounded-lg border border-gray-700">
+                          <label className="block text-xs text-gray-400 mb-2 font-bold">🔊 AI 음성</label>
+                          <audio controls src={renderAssets.audio} className="w-full h-8" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {renderStatus === 'ERROR' && (
+                    <div className="text-center py-6">
+                      <p className="text-sm font-bold text-red-400 mb-2">🚨 렌더링 실패</p>
+                      <p className="text-xs text-gray-500">{renderAssets.error || '서버 로그를 확인하세요.'}</p>
+                      <button
+                        onClick={() => setRenderStatus('IDLE')}
+                        className="mt-3 px-4 py-1.5 rounded-lg text-xs font-bold border border-gray-700 text-gray-400 hover:bg-gray-800 transition-all"
+                      >
+                        🔄 다시 시도
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Footer — 액션 버튼 */}
@@ -1250,6 +1406,7 @@ function EmpireConsole() {
                     // reject하지 않고 그냥 닫기 — pipeline은 catch에서 처리
                   }
                   wizardResolveRef.current = null;
+                  setRenderStatus('IDLE');
                   setToastMsg('⏹️ 파이프라인 중단됨');
                   setTimeout(() => setToastMsg(null), 2000);
                 }}
@@ -1257,18 +1414,33 @@ function EmpireConsole() {
               >
                 ⏹️ 중단
               </button>
-              <button
-                id="btn_wizard_proceed"
-                onClick={() => {
-                  if (wizardResolveRef.current) {
-                    wizardResolveRef.current();
-                    wizardResolveRef.current = null;
-                  }
-                }}
-                className="px-8 py-2.5 rounded-lg text-sm font-black bg-gradient-to-r from-violet-600 to-purple-500 hover:from-violet-500 hover:to-purple-400 text-white shadow-lg shadow-violet-900/30 transition-all"
-              >
-                {wizardState.nextStep?.icon} 다음 단계로 → {wizardState.nextStep?.label}
-              </button>
+              {/* Step 3 완료 시: '파이프라인 완료' 버튼 | 그 외: '다음 단계로' 버튼 */}
+              {wizardState.currentStep === 'STEP_3_RENDER' && renderStatus === 'DONE' ? (
+                <button
+                  onClick={() => {
+                    if (wizardResolveRef.current) {
+                      wizardResolveRef.current();
+                      wizardResolveRef.current = null;
+                    }
+                  }}
+                  className="px-8 py-2.5 rounded-lg text-sm font-black bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 text-white shadow-lg shadow-emerald-900/30 transition-all"
+                >
+                  ✅ 파이프라인 완료
+                </button>
+              ) : wizardState.currentStep !== 'STEP_3_RENDER' ? (
+                <button
+                  id="btn_wizard_proceed"
+                  onClick={() => {
+                    if (wizardResolveRef.current) {
+                      wizardResolveRef.current();
+                      wizardResolveRef.current = null;
+                    }
+                  }}
+                  className="px-8 py-2.5 rounded-lg text-sm font-black bg-gradient-to-r from-violet-600 to-purple-500 hover:from-violet-500 hover:to-purple-400 text-white shadow-lg shadow-violet-900/30 transition-all"
+                >
+                  {wizardState.nextStep?.icon} 다음 단계로 → {wizardState.nextStep?.label}
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
