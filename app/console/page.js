@@ -1309,9 +1309,22 @@ function EmpireConsole() {
                               })
                             );
 
-                            const images = imgResults
+                            let images = imgResults
                               .filter(r => r.status === 'fulfilled' && r.value.url)
                               .map(r => r.value);
+
+                            // 🛡️ FLUX가 에러 없이 빈 결과를 반환한 경우 → 더미 이미지 강제 주입
+                            if (images.length === 0) {
+                              console.warn('⚠️ [RENDER] FLUX가 0장 반환 — 더미 이미지 주입');
+                              hasDummy = true;
+                              const ts = Date.now();
+                              images = [
+                                { key: 'poster', url: `https://picsum.photos/seed/empire_poster_${ts}/800/1200`, isDummy: true },
+                                { key: 'logo',   url: `https://picsum.photos/seed/empire_logo_${ts}/800/800`,   isDummy: true },
+                                { key: 'sns',    url: `https://picsum.photos/seed/empire_sns_${ts}/1080/1080`,  isDummy: true },
+                                { key: 'card',   url: `https://picsum.photos/seed/empire_card_${ts}/1200/800`,  isDummy: true },
+                              ];
+                            }
 
                             // TTS 생성
                             let audioUrl = null;
