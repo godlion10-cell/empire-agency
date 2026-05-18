@@ -847,6 +847,24 @@ function EmpireConsole() {
             window.dispatchEvent(new CustomEvent('empire-sidebar-refresh', {}));
           }).catch(e => console.error('DB UPDATE 실패:', e.message));
         }
+      } else {
+        // ═══ 🚨 API 실패 시 Emergency Fallback ═══
+        const errorMsg = copyResult.error || '알 수 없는 백엔드 오류';
+        console.error(`🚨 [IGNITE] DNA 추출 실패: ${errorMsg}`);
+        setToastMsg(`⚠️ DNA 추출 실패: ${errorMsg}`);
+
+        // 비상 대본 — 반자동 모드에서 위저드가 null 대신 의미있는 텍스트를 표시
+        d = {
+          _emergency: true,
+          title: masterInput.substring(0, 60),
+          error: errorMsg,
+          pureContent: [
+            {
+              headline: `⚠️ 대본 추출 실패 — 수동 입력 필요`,
+              copy: `[에러 상세]\n${errorMsg}\n\n[입력값]\n${masterInput}\n\n이 텍스트를 삭제하고 원하시는 대본을 직접 입력해주세요.\n\n--- 예시 ---\n이 영상은 ___에 대한 이야기입니다.\n핵심 메시지는 ___이며,\n타겟 시청자는 ___입니다.`,
+            },
+          ],
+        };
       }
       setCopyGenerating(false);
 

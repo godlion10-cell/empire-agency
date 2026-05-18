@@ -39,10 +39,12 @@ export async function POST(req) {
       var channelName = formData.get('channelName') || '';
     } else {
       const body = await req.json();
-      inputType = body.type || 'URL';
-      videoUrl = body.url || body.videoUrl;
+      inputType = body.type || body.inputType || 'URL';
+      videoUrl = body.url || body.videoUrl || body.input;
       var videoTitle = body.videoTitle || '';
       var channelName = body.channelName || '';
+      // TEXT 모드에서 직접 텍스트가 전달된 경우
+      var directText = body.rawText || (inputType === 'TEXT' ? (body.input || body.text || '') : '');
     }
 
     console.log(`🌍 [GLOBAL] Stage 1: DNA Extraction — 모드: ${inputType}`);
@@ -53,8 +55,18 @@ export async function POST(req) {
     let rawText = '';
     let sourceInfo = {};
 
-    if (inputType === 'URL' && videoUrl) {
-      // URL 모드: 3중 폴백 자막 엔진
+    if (inputType === 'TEXT' && directText) {
+      // TEXT 모드: 사용자가 직접 입력한 텍스트
+      rawText = directText;
+      sourceInfo = {
+        mode: 'TEXT',
+        inputLength: directText.length,
+        extractionEngine: 'direct-input',
+      };
+      console.log(`📝 [GLOBAL] 텍스트 직접 입력: ${rawText.length}자`);
+
+    } else if ((inputType === 'URL' || inputType === 'TEXT') && videoUrl && videoUrl.startsWith('http')) {
+      // URL 모드: 3중 폴백 자막 엔진 (TEXT 모드에서도 URL이 들어오면 URL로 처리)
       const transcript = await fetchTranscript(videoUrl);
       rawText = transcript.full_text;
       sourceInfo = {
@@ -86,7 +98,7 @@ export async function POST(req) {
       console.log(`📄 [GLOBAL] Whisper 전사 완료: ${rawText.length}자`);
 
     } else {
-      return NextResponse.json({ success: false, error: 'URL 또는 파일이 필요합니다.' }, { status: 400 });
+      return NextResponse.json({ success: false, error: `입력 오류: type=${inputType}, URL/파일/텍스트가 필요합니다.` }, { status: 400 });
     }
 
     if (!rawText || rawText.length < 10) {
