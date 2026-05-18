@@ -15,7 +15,9 @@ export default function EmpireConsolePage() {
 function EmpireConsole() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const activeProjectId = searchParams?.get('pid') || null;
+  const activeProjectId_param = searchParams?.get('pid') || null;
+  const [activeProjectId, setActiveProjectId] = useState(activeProjectId_param);
+  useEffect(() => { if (activeProjectId_param) setActiveProjectId(activeProjectId_param); }, [activeProjectId_param]);
   const [isLocked, setIsLocked] = useState(true);
   const [showShadowRoom, setShowShadowRoom] = useState(false);
 
