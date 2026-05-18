@@ -69,6 +69,7 @@ export async function POST(req) {
 
     // 프로바이더 키 확인
     const providerKeys = {
+      huggingface: 'free', // 항상 사용 가능 (무료)
       ideogram: process.env.IDEOGRAM_API_KEY,
       flux: process.env.FAL_API_KEY,
       leonardo: process.env.LEONARDO_API_KEY,

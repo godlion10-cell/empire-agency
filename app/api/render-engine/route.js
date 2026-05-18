@@ -1,12 +1,23 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { generateVoiceAsDataUrl } from '@/lib/audio-engine';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // ============================================================
-// 1. 음성 생성 엔진 (ElevenLabs → OpenAI TTS Fallback)
+// 1. 음성 생성 엔진 (Edge TTS → ElevenLabs → OpenAI TTS Fallback)
 // ============================================================
 async function generateVoice(text) {
+  // [1차: Edge TTS — 100% 무료]
+  try {
+    console.log(`🔊 [VOICE] Edge TTS 시도 (ZERO COST)...`);
+    const result = await generateVoiceAsDataUrl(text, 'ko-KR-SunHiNeural');
+    return result;
+  } catch (edgeErr) {
+    console.log(`⚠️ Edge TTS 실패 (${edgeErr.message}), ElevenLabs로 전환`);
+  }
+
+  // [2차: ElevenLabs — 유료 백업]
   try {
     if (!process.env.ELEVENLABS_API_KEY) throw new Error('ElevenLabs API Key 미설정');
 
@@ -25,7 +36,7 @@ async function generateVoice(text) {
     const base64 = Buffer.from(audioBuffer).toString('base64');
     return { source: 'ElevenLabs', dataUrl: `data:audio/mpeg;base64,${base64}` };
   } catch (error) {
-    // [백업: OpenAI TTS]
+    // [3차: OpenAI TTS — 최종 백업]
     console.log(`⚠️ ElevenLabs 실패 (${error.message}), OpenAI TTS로 전환`);
     const mp3 = await openai.audio.speech.create({
       model: 'tts-1-hd',

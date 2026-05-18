@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { routeAfterStep, PIPELINE_STEPS, INITIAL_WIZARD_STATE } from '@/lib/pipeline-router';
 
 export default function EmpireConsolePage() {
   return (
@@ -104,6 +105,12 @@ function EmpireConsole() {
   // ★ Adaptive Analysis 세그먼트
   const [adaptiveSegments, setAdaptiveSegments] = useState(null);
   const [adaptiveConfig, setAdaptiveConfig] = useState(null);
+
+  // ═══ 🔀 Hybrid Pipeline — 전자동/반자동 모드 ═══
+  const [pipelineMode, setPipelineMode] = useState('AUTO'); // 'AUTO' | 'SEMI_AUTO'
+  const [wizardState, setWizardState] = useState(INITIAL_WIZARD_STATE);
+  const [wizardEditScript, setWizardEditScript] = useState(''); // 반자동 시 편집 가능한 대본
+  const wizardResolveRef = useRef(null); // 반자동 대기 Promise resolver
 
   // ═══ Auto-Save (Debounced) — 프로젝트 상태 자동 저장 ═══
   const saveTimerRef = useRef(null);
@@ -840,6 +847,37 @@ function EmpireConsole() {
       }
       setCopyGenerating(false);
 
+      // ═══ 🔀 HYBRID CHECKPOINT: Step 1 → Step 2 라우팅 ═══
+      const routing = routeAfterStep('STEP_1_DNA', pipelineMode === 'AUTO');
+
+      if (routing.action === 'PAUSE') {
+        // ✍️ 반자동: 위저드 패널 열고 사용자 검토 대기
+        const scriptText = typeof d === 'string' ? d
+          : d?.pureContent?.map(c => c.headline + '\n' + (c.copy || '')).join('\n\n')
+          || d?.copies?.map(c => c.headline + '\n' + c.body).join('\n\n')
+          || JSON.stringify(d, null, 2);
+
+        setWizardEditScript(scriptText);
+        setWizardState({
+          active: true,
+          currentStep: 'STEP_1_DNA',
+          nextStep: routing.nextStep,
+          status: 'WAITING_FOR_USER',
+          editableData: d,
+          stepHistory: ['STEP_0_INIT', 'STEP_1_DNA'],
+        });
+        setToastMsg('✍️ 반자동 모드 — 대본을 검토하고 [다음 단계로] 버튼을 눌러주세요.');
+
+        // Promise로 일시정지 — 사용자가 '다음 단계로' 클릭하면 resolve
+        await new Promise((resolve) => {
+          wizardResolveRef.current = resolve;
+        });
+
+        // 사용자가 스크립트를 수정했을 수 있으므로 반영
+        setWizardState(prev => ({ ...prev, active: false, status: 'PROCESSING' }));
+        setToastMsg('🚀 다음 단계 진행 중...');
+      }
+
       // ═══ Step 2: MJ 프롬프트 4종 — LLM 동적 생성 ═══
       setToastMsg('🎨 비주얼 프롬프트 생성 중...');
       setVisualGenerating(true);
@@ -931,6 +969,27 @@ function EmpireConsole() {
               {isProcessing ? 'PROCESSING' : 'ACTIVE'}
             </span>
           </span>
+          {/* ═══ 🔀 Hybrid Pipeline Toggle ═══ */}
+          <button
+            id="btn_pipeline_mode"
+            onClick={() => setPipelineMode(prev => prev === 'AUTO' ? 'SEMI_AUTO' : 'AUTO')}
+            className={`relative px-1 py-1 rounded-full text-xs font-bold transition-all duration-300 border flex items-center gap-0 w-[220px] ${
+              pipelineMode === 'AUTO'
+                ? 'bg-emerald-950 border-emerald-600 shadow-lg shadow-emerald-900/30'
+                : 'bg-violet-950 border-violet-600 shadow-lg shadow-violet-900/30'
+            }`}
+          >
+            <span className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 ${
+              pipelineMode === 'AUTO'
+                ? 'bg-emerald-500 text-black shadow-md'
+                : 'text-gray-500'
+            }`}>⚡ 전자동</span>
+            <span className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 ${
+              pipelineMode === 'SEMI_AUTO'
+                ? 'bg-violet-500 text-white shadow-md'
+                : 'text-gray-500'
+            }`}>✍️ 반자동</span>
+          </button>
           {/* 쉐도우 룸 스위치 */}
           <button
             onClick={handleShadowToggle}
@@ -945,6 +1004,7 @@ function EmpireConsole() {
         </div>
       </header>
 
+
       {/* ═══ Full-screen 로딩 오버레이 (Global Engine) ═══ */}
       {(globalProcessing || absorbingId || radarScanning || kwScanning) && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm">
@@ -957,6 +1017,97 @@ function EmpireConsole() {
               {kwScanning ? 'YouTube 연관 검색어를 수집하고 Gemini AI가 수익성을 분석 중입니다.' : absorbingId ? '해외 VVIP 대본을 한국형 타겟으로 재창조하고 있습니다.' : radarScanning ? '전 세계 트렌드를 실시간 스캔하고 있습니다.' : '원본 콘텐츠를 분석하고 심리 어댑터를 적용 중입니다.'}
             </p>
             <p className="mt-1 text-sm text-gray-400">(최대 10~15초 소요)</p>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ 🔀 Wizard Review Panel (반자동 모드 일시정지 화면) ═══ */}
+      {wizardState.active && wizardState.status === 'WAITING_FOR_USER' && (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/85 backdrop-blur-md">
+          <div className="w-full max-w-3xl mx-4 bg-gray-900 border border-violet-500/60 rounded-2xl shadow-2xl shadow-violet-900/20 overflow-hidden">
+            {/* Header */}
+            <div className="px-6 py-4 bg-gradient-to-r from-violet-900/40 to-purple-900/40 border-b border-violet-800/40">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-black text-violet-300">✍️ 반자동 위저드 — 검토 단계</h2>
+                  <p className="text-xs text-violet-400/70 mt-0.5">
+                    {PIPELINE_STEPS[wizardState.currentStep]?.icon} {PIPELINE_STEPS[wizardState.currentStep]?.label} 완료 → {wizardState.nextStep?.icon} {wizardState.nextStep?.label} 대기 중
+                  </p>
+                </div>
+                {/* 여기서 전자동으로 전환하면 즉시 진행 */}
+                <button
+                  onClick={() => {
+                    setPipelineMode('AUTO');
+                    if (wizardResolveRef.current) {
+                      wizardResolveRef.current();
+                      wizardResolveRef.current = null;
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-emerald-600 text-white hover:bg-emerald-500 transition-all"
+                >
+                  ⚡ 전자동으로 전환 & 즉시 진행
+                </button>
+              </div>
+
+              {/* Step Progress Bar */}
+              <div className="flex items-center gap-1 mt-3">
+                {['STEP_0_INIT', 'STEP_1_DNA', 'STEP_2_VISUAL', 'STEP_3_RENDER', 'COMPLETE'].map((stepId, i) => {
+                  const step = PIPELINE_STEPS[stepId];
+                  const isDone = wizardState.stepHistory?.includes(stepId);
+                  const isCurrent = wizardState.currentStep === stepId;
+                  return (
+                    <div key={stepId} className="flex items-center gap-1 flex-1">
+                      <div className={`w-full h-1.5 rounded-full transition-all ${isDone ? 'bg-violet-500' : isCurrent ? 'bg-violet-400 animate-pulse' : 'bg-gray-700'}`} />
+                      {i < 4 && <span className="text-[8px] text-gray-600 shrink-0">{step?.icon}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Body — 편집 가능한 대본 영역 */}
+            <div className="p-6">
+              <label className="block text-xs text-gray-400 mb-2 font-bold">📝 추출된 대본 (수정 가능)</label>
+              <textarea
+                id="wizard_edit_script"
+                value={wizardEditScript}
+                onChange={(e) => setWizardEditScript(e.target.value)}
+                className="w-full h-64 bg-black border border-gray-700 rounded-lg p-4 text-sm text-gray-200 font-mono leading-relaxed focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 outline-none resize-y"
+                placeholder="대본이 여기에 표시됩니다..."
+              />
+              <p className="text-[10px] text-gray-600 mt-1">💡 수정 후 [다음 단계로] 버튼을 누르면 수정된 내용이 반영됩니다.</p>
+            </div>
+
+            {/* Footer — 액션 버튼 */}
+            <div className="px-6 py-4 bg-gray-950 border-t border-gray-800 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  setWizardState(INITIAL_WIZARD_STATE);
+                  setIsProcessing(false);
+                  if (wizardResolveRef.current) {
+                    // reject하지 않고 그냥 닫기 — pipeline은 catch에서 처리
+                  }
+                  wizardResolveRef.current = null;
+                  setToastMsg('⏹️ 파이프라인 중단됨');
+                  setTimeout(() => setToastMsg(null), 2000);
+                }}
+                className="px-4 py-2 rounded-lg text-xs font-bold text-red-400 border border-red-800 hover:bg-red-900/30 transition-all"
+              >
+                ⏹️ 중단
+              </button>
+              <button
+                id="btn_wizard_proceed"
+                onClick={() => {
+                  if (wizardResolveRef.current) {
+                    wizardResolveRef.current();
+                    wizardResolveRef.current = null;
+                  }
+                }}
+                className="px-8 py-2.5 rounded-lg text-sm font-black bg-gradient-to-r from-violet-600 to-purple-500 hover:from-violet-500 hover:to-purple-400 text-white shadow-lg shadow-violet-900/30 transition-all"
+              >
+                {wizardState.nextStep?.icon} 다음 단계로 → {wizardState.nextStep?.label}
+              </button>
+            </div>
           </div>
         </div>
       )}
