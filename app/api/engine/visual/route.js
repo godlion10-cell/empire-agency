@@ -131,9 +131,31 @@ export async function POST(req) {
 
   } catch (error) {
     console.error('❌ [VISUAL] 에러:', error.message);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    console.log('➡️ [VISUAL] Fallback Dummy Image 주입 — 파이프라인 테스트 유지');
+
+    // ═══ 🛡️ Emergency Dummy: API 실패 시 파이프라인 유지용 더미 이미지 ═══
+    const body = await req.clone().json().catch(() => ({}));
+    const slotType = body.slotType || 'poster';
+    const dummySizes = {
+      poster: '800/1200',
+      logo: '800/800',
+      sns: '1080/1080',
+      card: '1200/800',
+    };
+    const size = dummySizes[slotType] || '800/1200';
+    const seed = `empire_${slotType}_${Date.now()}`;
+
+    return NextResponse.json({
+      success: true,
+      isDummy: true,
+      engine: 'visual',
+      data: {
+        imageUrl: `https://picsum.photos/seed/${seed}/${size}`,
+        url: `https://picsum.photos/seed/${seed}/${size}`,
+        provider: 'dummy-fallback',
+        slotType,
+        warning: `실제 API 실패 (${error.message.substring(0, 80)}). 더미 이미지로 대체됨.`,
+      },
+    });
   }
 }

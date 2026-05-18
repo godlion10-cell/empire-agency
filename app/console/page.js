@@ -1291,6 +1291,7 @@ function EmpireConsole() {
                           try {
                             const prompts = mjPrompts || {};
                             const promptEntries = Object.entries(prompts).filter(([, v]) => v);
+                            let hasDummy = false;
 
                             // 이미지 생성 (병렬)
                             const imgResults = await Promise.allSettled(
@@ -1298,10 +1299,13 @@ function EmpireConsole() {
                                 const res = await fetch('/api/engine/visual', {
                                   method: 'POST',
                                   headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ prompt, provider: 'huggingface' }),
+                                  body: JSON.stringify({ prompt, provider: 'huggingface', slotType: key }),
                                 });
-                                const data = await res.json();
-                                return { key, url: data.imageUrl || data.url || null, error: data.error };
+                                const json = await res.json();
+                                if (json.isDummy) hasDummy = true;
+                                // API는 data.imageUrl 또는 최상위 imageUrl 둘 다 가능
+                                const imgUrl = json.data?.imageUrl || json.data?.url || json.imageUrl || json.url || null;
+                                return { key, url: imgUrl, error: json.error, isDummy: json.isDummy };
                               })
                             );
 
@@ -1318,10 +1322,16 @@ function EmpireConsole() {
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ text: ttsText, voice: 'ko-KR-SunHiNeural' }),
                               });
-                              const ttsData = await ttsRes.json();
-                              audioUrl = ttsData.audioUrl || ttsData.url || null;
+                              const ttsJson = await ttsRes.json();
+                              if (ttsJson.isDummy) hasDummy = true;
+                              audioUrl = ttsJson.data?.audioUrl || ttsJson.data?.url || ttsJson.audioUrl || ttsJson.url || null;
                             } catch (ttsErr) {
                               console.error('TTS 실패:', ttsErr);
+                            }
+
+                            if (hasDummy) {
+                              setToastMsg('⚠️ 일부 에셋이 더미 데이터로 대체되었습니다 (API 크레딧 확인 필요)');
+                              setTimeout(() => setToastMsg(null), 5000);
                             }
 
                             setRenderAssets({ images, audio: audioUrl, error: null });
