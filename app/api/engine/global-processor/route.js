@@ -66,9 +66,16 @@ export async function POST(req) {
       console.log(`📝 [GLOBAL] 텍스트 직접 입력: ${rawText.length}자`);
 
     } else if ((inputType === 'URL' || inputType === 'TEXT') && videoUrl && videoUrl.startsWith('http')) {
-      // URL 모드: 3중 폴백 자막 엔진 (TEXT 모드에서도 URL이 들어오면 URL로 처리)
+      // URL 모드: 4중 폴백 자막 엔진 (Library → Scrape → oEmbed → Gemini STT)
       const transcript = await fetchTranscript(videoUrl);
       rawText = transcript.full_text;
+
+      // oEmbed 제목 기반 모드일 경우 → videoTitle을 자동 추출
+      if (transcript.source === 'oembed-title' && !videoTitle) {
+        const titleMatch = rawText.match(/영상 제목:\s*(.+)/);
+        if (titleMatch) videoTitle = titleMatch[1].trim();
+      }
+
       sourceInfo = {
         mode: 'URL',
         videoId: transcript.video_id,
