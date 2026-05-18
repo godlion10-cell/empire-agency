@@ -1459,6 +1459,16 @@ function EmpireConsole() {
               {wizardState.currentStep === 'STEP_3_RENDER' && renderStatus === 'DONE' ? (
                 <button
                   onClick={() => {
+                    // ═══ 렌더 에셋 → 대시보드 슬롯 매핑 ═══
+                    if (renderAssets.images && renderAssets.images.length > 0) {
+                      const newSlots = { ...slotImages };
+                      renderAssets.images.forEach(img => {
+                        if (img.key && img.url) {
+                          newSlots[img.key] = { url: img.url, name: `FLUX_${img.key}` };
+                        }
+                      });
+                      setSlotImages(newSlots);
+                    }
                     if (wizardResolveRef.current) {
                       wizardResolveRef.current();
                       wizardResolveRef.current = null;
