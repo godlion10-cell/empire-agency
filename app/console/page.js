@@ -1352,29 +1352,70 @@ function EmpireConsole() {
                   )}
 
                   {renderStatus === 'DONE' && (
-                    <div>
-                      <div className="text-center py-3 mb-4">
-                        <p className="text-sm font-bold text-emerald-400">✅ 렌더링 완료!</p>
+                    <div className="animate-[fadeIn_0.5s_ease-out]">
+                      {/* 완료 헤더 */}
+                      <div className="text-center py-3 mb-5">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-950/50 border border-emerald-700/40 rounded-full">
+                          <span className="text-lg">✅</span>
+                          <span className="text-sm font-black text-emerald-400">렌더링 완료!</span>
+                          <span className="text-[10px] text-emerald-600">{renderAssets.images.length}장 이미지{renderAssets.audio ? ' + AI 음성' : ''}</span>
+                        </div>
                       </div>
+
                       {/* 생성된 이미지 프리뷰 */}
-                      {renderAssets.images.length > 0 && (
-                        <div className="mb-4">
-                          <label className="block text-xs text-gray-400 mb-2 font-bold">🖼️ 생성된 이미지 ({renderAssets.images.length}장)</label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {renderAssets.images.map((img, i) => (
-                              <div key={i} className="bg-black border border-gray-700 rounded-lg overflow-hidden">
-                                <img src={img.url} alt={img.key} className="w-full h-32 object-cover" />
-                                <p className="text-[9px] text-center py-1 text-gray-500">{img.key}</p>
-                              </div>
-                            ))}
+                      {renderAssets.images.length > 0 ? (
+                        <div className="mb-5">
+                          <label className="block text-xs text-gray-400 mb-3 font-bold">🖼️ 생성된 이미지 ({renderAssets.images.length}장)</label>
+                          <div className="grid grid-cols-2 gap-3">
+                            {renderAssets.images.map((img, i) => {
+                              const slotLabels = { poster: '🎬 포스터 (9:16)', logo: '◇ 로고 (1:1)', sns: '📱 SNS (1:1)', card: '🎴 카드 (16:9)' };
+                              return (
+                                <div key={i} className="group bg-black border border-gray-700 rounded-xl overflow-hidden hover:border-violet-500/50 transition-all duration-300">
+                                  <div className="relative overflow-hidden">
+                                    <img
+                                      src={img.url}
+                                      alt={img.key}
+                                      className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500"
+                                      onError={(e) => { e.target.style.display = 'none'; }}
+                                    />
+                                  </div>
+                                  <div className="px-2 py-1.5 flex items-center justify-between">
+                                    <span className="text-[9px] font-bold text-violet-400">{slotLabels[img.key] || img.key}</span>
+                                    <a
+                                      href={img.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-[8px] text-gray-600 hover:text-gray-300 transition-colors"
+                                    >
+                                      원본 보기 ↗
+                                    </a>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
+                      ) : (
+                        <div className="mb-5 p-4 bg-gray-800/40 rounded-lg border border-gray-700 text-center">
+                          <p className="text-xs text-gray-500">⚠️ 이미지 생성 결과가 없습니다. API 상태를 확인해주세요.</p>
+                        </div>
                       )}
-                      {/* 오디오 프리뷰 */}
-                      {renderAssets.audio && (
-                        <div className="mb-4 p-3 bg-gray-800/60 rounded-lg border border-gray-700">
-                          <label className="block text-xs text-gray-400 mb-2 font-bold">🔊 AI 음성</label>
-                          <audio controls src={renderAssets.audio} className="w-full h-8" />
+
+                      {/* AI 음성 프리뷰 */}
+                      {renderAssets.audio ? (
+                        <div className="mb-4 p-4 bg-gradient-to-r from-gray-800/80 to-gray-800/40 rounded-xl border border-gray-700">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-lg">🔊</span>
+                            <div>
+                              <label className="block text-xs text-gray-300 font-bold">AI 보이스 미리듣기</label>
+                              <p className="text-[9px] text-gray-500">Edge TTS (ko-KR-SunHiNeural)</p>
+                            </div>
+                          </div>
+                          <audio controls src={renderAssets.audio} className="w-full h-10" style={{ borderRadius: '8px' }} />
+                        </div>
+                      ) : (
+                        <div className="mb-4 p-3 bg-gray-800/40 rounded-lg border border-gray-700 text-center">
+                          <p className="text-xs text-gray-500">🔇 음성 생성 결과가 없습니다.</p>
                         </div>
                       )}
                     </div>
