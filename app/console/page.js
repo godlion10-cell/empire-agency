@@ -855,12 +855,28 @@ function EmpireConsole() {
 
       if (routing.action === 'PAUSE') {
         // ✍️ 반자동: 위저드 패널 열고 사용자 검토 대기
-        const scriptText = typeof d === 'string' ? d
-          : d?.pureContent?.map(c => c.headline + '\n' + (c.copy || '')).join('\n\n')
-          || d?.copies?.map(c => c.headline + '\n' + c.body).join('\n\n')
-          || JSON.stringify(d, null, 2);
+        // d의 모든 가능한 응답 형식에서 텍스트 추출 (null 방지)
+        let scriptText = '';
+        if (typeof d === 'string') {
+          scriptText = d;
+        } else if (d?.pureContent?.length > 0) {
+          scriptText = d.pureContent.map(c => (c.headline || '') + '\n' + (c.copy || c.body || '')).join('\n\n');
+        } else if (d?.copies?.length > 0) {
+          scriptText = d.copies.map(c => (c.headline || '') + '\n' + (c.body || '')).join('\n\n');
+        } else if (d?.script) {
+          scriptText = typeof d.script === 'string' ? d.script : JSON.stringify(d.script, null, 2);
+        } else if (d?.text || d?.result) {
+          scriptText = d.text || d.result;
+        } else if (d?.videoTitle || d?.title) {
+          // 최소한 제목이라도 표시
+          scriptText = `[제목] ${d.videoTitle || d.title}\n\n${d?.description || d?.summary || JSON.stringify(d, null, 2)}`;
+        } else if (d) {
+          scriptText = JSON.stringify(d, null, 2);
+        } else {
+          scriptText = '⚠️ 대본 추출 결과가 비어있습니다. 입력을 확인하고 다시 시도해주세요.';
+        }
 
-        setWizardEditScript(scriptText);
+        setWizardEditScript(scriptText.trim());
         setWizardState({
           active: true,
           currentStep: 'STEP_1_DNA',
@@ -1052,20 +1068,48 @@ function EmpireConsole() {
                 </button>
               </div>
 
-              {/* Step Progress Bar */}
-              <div className="flex items-center gap-1 mt-3">
-                {['STEP_0_INIT', 'STEP_1_DNA', 'STEP_2_VISUAL', 'STEP_3_RENDER', 'COMPLETE'].map((stepId, i) => {
-                  const step = PIPELINE_STEPS[stepId];
-                  const isDone = wizardState.stepHistory?.includes(stepId);
-                  const isCurrent = wizardState.currentStep === stepId;
-                  return (
-                    <div key={stepId} className="flex items-center gap-1 flex-1">
-                      <div className={`w-full h-1.5 rounded-full transition-all ${isDone ? 'bg-violet-500' : isCurrent ? 'bg-violet-400 animate-pulse' : 'bg-gray-700'}`} />
-                      {i < 4 && <span className="text-[8px] text-gray-600 shrink-0">{step?.icon}</span>}
+              {/* ═══ Dynamic Progress Bar ═══ */}
+              {(() => {
+                const stepOrder = ['STEP_0_INIT', 'STEP_1_DNA', 'STEP_2_VISUAL', 'STEP_3_RENDER', 'COMPLETE'];
+                const currentIdx = stepOrder.indexOf(wizardState.currentStep);
+                const progress = Math.round(((currentIdx + 1) / stepOrder.length) * 100);
+                const statusMap = {
+                  'STEP_0_INIT': '📦 프로젝트 생성 완료',
+                  'STEP_1_DNA': '✍️ 대본 검토 대기 중 (수정 후 다음 단계를 눌러주세요)',
+                  'STEP_2_VISUAL': '🎨 비주얼 프롬프트 생성 중...',
+                  'STEP_3_RENDER': '🎬 렌더링 진행 중...',
+                  'COMPLETE': '✅ 파이프라인 완료',
+                };
+                const statusText = statusMap[wizardState.currentStep] || '처리 중...';
+                return (
+                  <div className="mt-4">
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-xs font-bold text-violet-300">{statusText}</span>
+                      <span className="text-xs font-mono font-bold text-violet-400">{progress}%</span>
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="w-full bg-gray-800 rounded-full h-2.5 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-violet-600 to-purple-400 transition-all duration-700 ease-out"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    {/* Step dots */}
+                    <div className="flex justify-between mt-2">
+                      {stepOrder.map((stepId) => {
+                        const step = PIPELINE_STEPS[stepId];
+                        const isDone = wizardState.stepHistory?.includes(stepId);
+                        const isCurrent = wizardState.currentStep === stepId;
+                        return (
+                          <div key={stepId} className="flex flex-col items-center gap-0.5">
+                            <span className={`text-sm ${isDone ? '' : isCurrent ? 'animate-pulse' : 'opacity-30'}`}>{step?.icon}</span>
+                            <span className={`text-[7px] ${isDone ? 'text-violet-400' : isCurrent ? 'text-violet-300 font-bold' : 'text-gray-600'}`}>{step?.label?.split(' ')[0]}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Body — 편집 가능한 대본 영역 */}
